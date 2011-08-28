@@ -8,12 +8,14 @@ class Error(Exception):
     pass
 
 class Repository:
-    def __init__(self, path, release):
+    def __init__(self, path, release, version='1.0', origin='TurnKey'):
         if not exists(path):
             raise Error('repository does not exist', path)
 
         self.path = path
         self.release = release
+        self.version = version
+        self.origin = origin
 
     def _archive_cmd(self, command, input, output):
         cwd = os.getcwd()
@@ -32,4 +34,11 @@ class Repository:
         
         self._archive_cmd('packages', component_dir, join(output_dir, 'Packages'))
 
+        fh = file(join(output_dir, 'Release'), "w")
+        print >> fh, "Origin: %s" % self.origin
+        print >> fh, "Label: %s" % self.origin
+        print >> fh, "Archive: %s" % self.release
+        print >> fh, "Version: %s" % self.version
+        print >> fh, "Component: %s" % component
+        fh.close()
 

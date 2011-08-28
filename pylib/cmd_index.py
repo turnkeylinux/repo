@@ -2,9 +2,13 @@
 """Index repository component
 
 Arguments:
-  path          path to repository
-  release       release to act on
-  component     release component to index
+  path          Path to repository
+  release       Release to act on
+  component     Release component to index
+
+Options:
+  --origin=     Origin to set (default: TurnKey)
+  --version=    Release version to set (default: 1.0)
 
 """
 
@@ -17,13 +21,18 @@ from repo import Repository
 
 @help.usage(__doc__)
 def usage():
-    print >> sys.stderr, "Syntax: %s <path> <release> <component>" % sys.argv[0]
+    print >> sys.stderr, "Syntax: %s [-options] <path> <release> <component>" % sys.argv[0]
 
 def main():
     try:
-        opts, args = getopt.gnu_getopt(sys.argv[1:], "", [])
+        opts, args = getopt.gnu_getopt(sys.argv[1:], "", 
+                                       ['origin=', 'version='])
     except getopt.GetoptError, e:
         usage(e)
+
+    kws = {}
+    for opt, val in opts:
+        kws[opt[2:]] = val
 
     if not args:
         usage()
@@ -33,7 +42,7 @@ def main():
 
     path, release, component = args
 
-    repo = Repository(path, release)
+    repo = Repository(path, release, **kws)
     repo.index(component)
 
 if __name__ == "__main__":
