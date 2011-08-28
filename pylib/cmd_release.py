@@ -6,6 +6,7 @@ Arguments:
   release       Release to act on
 
 Options:
+  --gpgkey=     GPG Key to use when signing the release
   --origin=     Origin to set (default: TurnKey)
   --version=    Release version to set (default: 1.0)
 
@@ -25,13 +26,17 @@ def usage():
 def main():
     try:
         opts, args = getopt.gnu_getopt(sys.argv[1:], "", 
-                                       ['origin=', 'version='])
+                                       ['gpgkey=', 'origin=', 'version='])
     except getopt.GetoptError, e:
         usage(e)
 
     kws = {}
+    gpgkey = None
     for opt, val in opts:
-        kws[opt[2:]] = val
+        if opt == '--gpgkey':
+            gpgkey = val
+        else:
+            kws[opt[2:]] = val
 
     if not args:
         usage()
@@ -42,7 +47,7 @@ def main():
     path, release = args
 
     repo = Repository(path, release, **kws)
-    repo.generate_release()
+    repo.generate_release(gpgkey)
 
 if __name__ == "__main__":
     main()

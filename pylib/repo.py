@@ -45,7 +45,8 @@ class Repository:
         print >> fh, "Component: %s" % component
         fh.close()
 
-    def generate_release(self):
+    def generate_release(self, gpgkey=None):
+        components_dir = join(self.path, 'pool')
         release_dir = join('dists', self.release)
 
         release = join(self.path, release_dir, 'Release')
@@ -64,9 +65,14 @@ class Repository:
         print >> fh, "Version: %s" % self.version
         print >> fh, "Codename: %s" % self.release
         print >> fh, "Architectures: i386"
-        print >> fh, "Components: %s" % ' '.join(os.listdir(join(self.path, 'pool')))
+        print >> fh, "Components: %s" % ' '.join(os.listdir(components_dir))
         print >> fh, "Description: %s %s %s" % (self.origin,
                                                 self.release,
                                                 self.version)
         print >> fh, hashes
+
+        if gpgkey:
+            cmd = "gpg -abs -u %s -o %s %s" % (gpgkey, release_gpg, release)
+            executil.system(cmd)
+
 
