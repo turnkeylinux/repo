@@ -17,11 +17,12 @@ class Repository:
         self.version = version
         self.origin = origin
 
-    def _archive_cmd(self, command, input, output):
+    def _archive_cmd(self, command, input):
         cwd = os.getcwd()
         os.chdir(self.path)
-        executil.system('apt-ftparchive %s %s > %s' % (command, input, output))
+        output = executil.getoutput('apt-ftparchive %s %s' % (command, input))
         os.chdir(cwd)
+        return output
 
     def index(self, component):
         component_dir = join('pool', component)
@@ -32,7 +33,9 @@ class Repository:
         if not exists(output_dir):
             os.makedirs(output_dir)
         
-        self._archive_cmd('packages', component_dir, join(output_dir, 'Packages'))
+        fh = file(join(output_dir, 'Packages'), "w")
+        print >> fh, self._archive_cmd('packages', component_dir)
+        fh.close()
 
         fh = file(join(output_dir, 'Release'), "w")
         print >> fh, "Origin: %s" % self.origin
