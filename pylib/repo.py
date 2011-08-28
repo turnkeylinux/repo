@@ -45,3 +45,28 @@ class Repository:
         print >> fh, "Component: %s" % component
         fh.close()
 
+    def generate_release(self):
+        release_dir = join('dists', self.release)
+
+        release = join(self.path, release_dir, 'Release')
+        release_gpg = join(self.path, release_dir, 'Release.gpg')
+        
+        for path in (release, release_gpg):
+            if exists(path):
+                os.remove(path)
+
+        hashes = self._archive_cmd('release', release_dir)
+
+        fh = file(release, "w")
+        print >> fh, "Origin: %s" % self.origin
+        print >> fh, "Label: %s" % self.origin
+        print >> fh, "Suite: %s" % self.release
+        print >> fh, "Version: %s" % self.version
+        print >> fh, "Codename: %s" % self.release
+        print >> fh, "Architectures: i386"
+        print >> fh, "Components: %s" % ' '.join(os.listdir(join(self.path, 'pool')))
+        print >> fh, "Description: %s %s %s" % (self.origin,
+                                                self.release,
+                                                self.version)
+        print >> fh, hashes
+
