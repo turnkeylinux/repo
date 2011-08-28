@@ -1,0 +1,3 @@
+#!/usr/bin/make -f
+PYPROJECT_SHARE_PATH ?= /usr/share/pyproject
+include $(PYPROJECT_SHARE_PATH)/debian-rules.mk

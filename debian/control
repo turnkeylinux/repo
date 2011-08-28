@@ -1,0 +1,13 @@
+Source: repo
+Section: misc
+Priority: optional
+Maintainer: Alon Swartz <alon@turnkeylinux.org>
+Build-Depends: pyproject-common
+Standards-Version: 3.6.1
+
+Package: repo
+Architecture: any
+Depends: pyproject-common
+Suggests: python-profiler
+Description: <insert up to 60 chars short description>
+ <insert long description, indented with spaces>
