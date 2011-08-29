@@ -37,6 +37,9 @@ class Repository:
         print >> fh, self._archive_cmd('packages', component_dir)
         fh.close()
 
+        executil.system("gzip -c %s > %s" % (join(output_dir, 'Packages'),
+                                             join(output_dir, 'Packages.gz')))
+
         fh = file(join(output_dir, 'Release'), "w")
         print >> fh, "Origin: %s" % self.origin
         print >> fh, "Label: %s" % self.origin
