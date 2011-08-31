@@ -73,6 +73,7 @@ class Repository:
                                                 self.release,
                                                 self.version)
         print >> fh, hashes
+        fh.close()
 
         if gpgkey:
             cmd = "gpg -abs -u %s -o %s %s" % (gpgkey, release_gpg, release)
