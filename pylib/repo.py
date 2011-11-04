@@ -32,9 +32,13 @@ class Repository:
         output_dir = join(self.path, 'dists', self.release, component, 'binary-i386')
         if not exists(output_dir):
             os.makedirs(output_dir)
-        
+
+        output = self._archive_cmd('packages', component_dir)
         fh = file(join(output_dir, 'Packages'), "w")
-        print >> fh, self._archive_cmd('packages', component_dir)
+        fh.write(output)
+        if output:
+            # append newline if packages were in pool
+            print >> fh
         fh.close()
 
         executil.system("gzip -c %s > %s" % (join(output_dir, 'Packages'),
