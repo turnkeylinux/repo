@@ -8,12 +8,13 @@ class Error(Exception):
     pass
 
 class Repository:
-    def __init__(self, path, release, version='1.0', origin='TurnKey'):
+    def __init__(self, path, release, pool='pool' ,version='1.0', origin='TurnKey'):
         if not exists(path):
             raise Error('repository does not exist', path)
 
         self.path = path
         self.release = release
+        self.pool = pool
         self.version = version
         self.origin = origin
 
@@ -25,7 +26,7 @@ class Repository:
         return output
 
     def index(self, component):
-        component_dir = join('pool', component)
+        component_dir = join(self.pool, component)
         if not exists(join(self.path, component_dir)):
             raise Error('component does not exist', join(self.path, component_dir))
 
@@ -53,7 +54,7 @@ class Repository:
         fh.close()
 
     def generate_release(self, gpgkey=None):
-        components_dir = join(self.path, 'pool')
+        components_dir = join(self.path, self.pool)
         release_dir = join('dists', self.release)
 
         release = join(self.path, release_dir, 'Release')

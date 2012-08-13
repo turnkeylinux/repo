@@ -7,6 +7,7 @@ Arguments:
   component     Release component to index
 
 Options:
+  --pool=       Pool directory (default: pool)
   --origin=     Origin to set (default: TurnKey)
   --version=    Release version to set (default: 1.0)
 
@@ -26,7 +27,7 @@ def usage():
 def main():
     try:
         opts, args = getopt.gnu_getopt(sys.argv[1:], "", 
-                                       ['origin=', 'version='])
+                                       ['pool=', 'origin=', 'version='])
     except getopt.GetoptError, e:
         usage(e)
 
