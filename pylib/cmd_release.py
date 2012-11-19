@@ -7,8 +7,8 @@ Arguments:
 
 Options:
   --gpgkey=     GPG Key to use when signing the release
-  --pool=       Pool directory (default: pool)
-  --origin=     Origin to set (default: TurnKey)
+  --pool=       Packages pool directory (default: pool)
+  --origin=     Origin to set (default: turnkeylinux)
   --version=    Release version to set (default: 1.0)
 
 """
@@ -22,7 +22,8 @@ from repo import Repository
 
 @help.usage(__doc__)
 def usage():
-    print >> sys.stderr, "Syntax: %s [-options] <path> <release>" % sys.argv[0]
+    s = "Syntax: %s [-options] <path> <release>" % sys.argv[0]
+    print >> sys.stderr, s
 
 def main():
     try:
@@ -31,7 +32,7 @@ def main():
     except getopt.GetoptError, e:
         usage(e)
 
-    kws = {}
+    kws = {'pool': 'pool', 'version': '1.0', 'origin': 'turnkeylinux'}
     gpgkey = None
     for opt, val in opts:
         if opt == '--gpgkey':

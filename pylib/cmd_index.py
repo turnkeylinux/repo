@@ -5,10 +5,11 @@ Arguments:
   path          Path to repository
   release       Release to act on
   component     Release component to index
+  arch          Architecture (e.g., i386, amd64)
 
 Options:
-  --pool=       Pool directory (default: pool)
-  --origin=     Origin to set (default: TurnKey)
+  --pool=       Packages pool directory (default: pool)
+  --origin=     Origin to set (default: turnkeylinux)
   --version=    Release version to set (default: 1.0)
 
 """
@@ -22,7 +23,8 @@ from repo import Repository
 
 @help.usage(__doc__)
 def usage():
-    print >> sys.stderr, "Syntax: %s [-options] <path> <release> <component>" % sys.argv[0]
+    s = "Syntax: %s [-options] <path> <release> <component> <arch>" % sys.argv[0]
+    print >> sys.stderr, s
 
 def main():
     try:
@@ -31,20 +33,20 @@ def main():
     except getopt.GetoptError, e:
         usage(e)
 
-    kws = {}
+    kws = {'pool': 'pool', 'version': '1.0', 'origin': 'turnkeylinux'}
     for opt, val in opts:
         kws[opt[2:]] = val
 
     if not args:
         usage()
 
-    if len(args) != 3:
+    if len(args) != 4:
         usage("bad number of arguments")
 
-    path, release, component = args
+    path, release, component, arch = args
 
     repo = Repository(path, release, **kws)
-    repo.index(component)
+    repo.index(component, arch)
 
 if __name__ == "__main__":
     main()

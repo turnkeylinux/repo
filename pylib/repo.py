@@ -8,7 +8,7 @@ class Error(Exception):
     pass
 
 class Repository:
-    def __init__(self, path, release, pool='pool' ,version='1.0', origin='TurnKey'):
+    def __init__(self, path, release, pool, version, origin):
         if not exists(path):
             raise Error('repository does not exist', path)
 
@@ -25,12 +25,13 @@ class Repository:
         os.chdir(cwd)
         return output
 
-    def index(self, component):
+    def index(self, component, arch):
         component_dir = join(self.pool, component)
         if not exists(join(self.path, component_dir)):
             raise Error('component does not exist', join(self.path, component_dir))
 
-        output_dir = join(self.path, 'dists', self.release, component, 'binary-i386')
+        output_dir = '%s/dists/%s/%s/binary-%s' % (self.path, self.release,
+                                                   component, arch)
         if not exists(output_dir):
             os.makedirs(output_dir)
 
@@ -51,9 +52,23 @@ class Repository:
         print >> fh, "Archive: %s" % self.release
         print >> fh, "Version: %s" % self.version
         print >> fh, "Component: %s" % component
+        print >> fh, "Architecture: %s" % arch
         fh.close()
 
     def generate_release(self, gpgkey=None):
+        def get_archs():
+            archs = set()
+            dist_path = join(self.path, 'dists', self.release)
+            for component in os.listdir(dist_path):
+                component_path = join(dist_path, component)
+                if not isdir(component_path):
+                    continue
+
+                for binary in os.listdir(component_path):
+                    archs.add(binary.replace('binary-', ''))
+
+            return archs
+
         components_dir = join(self.path, self.pool)
         release_dir = join('dists', self.release)
 
@@ -72,7 +87,7 @@ class Repository:
         print >> fh, "Suite: %s" % self.release
         print >> fh, "Version: %s" % self.version
         print >> fh, "Codename: %s" % self.release
-        print >> fh, "Architectures: i386"
+        print >> fh, "Architectures: %s" % ' '.join(get_archs())
         print >> fh, "Components: %s" % ' '.join(os.listdir(components_dir))
         print >> fh, "Description: %s %s %s" % (self.origin,
                                                 self.release,
