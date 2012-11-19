@@ -7,7 +7,8 @@ Standards-Version: 3.6.1
 
 Package: repo
 Architecture: any
-Depends: pyproject-common
+Depends: pyproject-common, turnkey-pylib, apt-utils
+Recommends: gnupg
 Suggests: python-profiler
-Description: <insert up to 60 chars short description>
- <insert long description, indented with spaces>
+Description: Tools to index and create a Debian package repository
+
