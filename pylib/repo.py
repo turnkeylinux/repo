@@ -46,6 +46,9 @@ class Repository:
         executil.system("gzip -c %s > %s" % (join(output_dir, 'Packages'),
                                              join(output_dir, 'Packages.gz')))
 
+        executil.system("bzip2 -c %s > %s" % (join(output_dir, 'Packages'),
+                                              join(output_dir, 'Packages.bz2')))
+
         fh = file(join(output_dir, 'Release'), "w")
         print >> fh, "Origin: %s" % self.origin
         print >> fh, "Label: %s" % self.origin
