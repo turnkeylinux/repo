@@ -43,7 +43,7 @@ class Repository:
         if not exists(output_dir):
             os.makedirs(output_dir)
 
-        output = self._archive_cmd('packages', component_dir)
+        output = self._archive_cmd('--arch=%s packages' % arch, component_dir)
         fh = file(join(output_dir, 'Packages'), "w")
         fh.write(output)
         if output:
@@ -76,6 +76,8 @@ class Repository:
                     continue
 
                 for binary in os.listdir(component_path):
+                    if binary == 'binary-all':
+                        continue
                     archs.add(binary.replace('binary-', ''))
 
             return archs
@@ -85,7 +87,7 @@ class Repository:
 
         release = join(self.path, release_dir, 'Release')
         release_gpg = join(self.path, release_dir, 'Release.gpg')
-        
+
         for path in (release, release_gpg):
             if exists(path):
                 os.remove(path)
