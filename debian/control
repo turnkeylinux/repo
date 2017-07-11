@@ -12,6 +12,7 @@ Architecture: any
 Depends:
  apt-utils,
  bzip2,
+ ${misc:Depends},
  gzip,
  pyproject-common,
  turnkey-pylib,
