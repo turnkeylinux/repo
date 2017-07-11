@@ -3,6 +3,7 @@ Section: misc
 Priority: optional
 Maintainer: Alon Swartz <alon@turnkeylinux.org>
 Build-Depends:
+ debhelper (>= 10),
  pyproject-common,
 Standards-Version: 4.0.0
 
