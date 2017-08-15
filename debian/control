@@ -2,13 +2,25 @@ Source: repo
 Section: misc
 Priority: optional
 Maintainer: Alon Swartz <alon@turnkeylinux.org>
-Build-Depends: pyproject-common
-Standards-Version: 3.6.1
+Build-Depends:
+ debhelper (>= 10),
+ python-all (>= 2.6.6-3~),
+ pyproject-common,
+Standards-Version: 4.0.0
+X-Python-Version: >= 2.6
 
 Package: repo
 Architecture: any
-Depends: pyproject-common, turnkey-pylib, apt-utils, bzip2, gzip
-Recommends: gnupg
-Suggests: python-profiler
+Depends:
+ apt-utils,
+ bzip2,
+ ${misc:Depends},
+ gzip,
+ pyproject-common,
+ ${shlibs:Depends},
+ turnkey-pylib,
+Recommends:
+ gnupg,
+Suggests:
+ python-profiler,
 Description: Tools to index and create a Debian package repository
-
