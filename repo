@@ -1,0 +1,76 @@
+#!/usr/bin/python3
+# Copyright (c) 2021 TurnKey GNU/Linux - https://www.turnkeylinux.org
+#
+# This file is part of Repo
+#
+# Repo is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; either version 3 of the License, or (at your
+# option) any later version.
+
+import argparse
+import sys
+from os.path import basename
+
+from repo_lib import Repository
+
+
+def fatal(msg: str, help=None):
+    print("error: " + str(msg), file=sys.stderr)
+    if help:
+        help()
+    sys.exit(1)
+
+
+def main():
+    # common arguments
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument("path", help="Path to repository")
+    parent_parser.add_argument("release", help="Release to act on")
+    parent_parser.add_argument(
+                '--pool', default="pool",
+                help="Packages pool directory (default: pool)")
+    parent_parser.add_argument(
+                "--origin", default="turnkeylinux",
+                help="Origin to set (default: turnkeylinux)")
+    parent_parser.add_argument(
+                "--version", default="1.0",
+                help="Release version to set (default: 1.0)")
+    # main parser
+    main_parser = argparse.ArgumentParser(
+            prog="repo",
+            description="Tool to index and create a Debian package repository")
+    subparsers = main_parser.add_subparsers(dest='command')
+
+    # repo-index
+    parser_index = subparsers.add_parser(
+            "index", help="Index repository component", parents=[parent_parser])
+    parser_index.add_argument("component", help="Release component to index")
+    parser_index.add_argument("arch", help="Architecture (e.g., i386, amd64)")
+    
+    # repo-release
+    parser_release = subparsers.add_parser(
+            "release", help="Generate repository release", parents=[parent_parser])
+    parser_release.add_argument("--gpgkey",
+                                help="GPG Key to use when signing the release")
+
+    # process repo-index & repo-release
+    unparsed = sys.argv[1:]
+    filename = basename(__file__)
+    if filename.startswith('repo-') and filename[5:] in ('index', 'release'):
+        unparsed.insert(0, filename[5:])
+    args = main_parser.parse_args(unparsed)
+
+    if not args.command:
+        fatal("Subcommand required.", main_parser.print_help)
+
+    repo = Repository(args.path, args.release, args.pool,
+                      args.version, args.origin)
+    if args.command == 'index':
+        repo.index(args.component, args.arch)
+    elif args.command == 'release':
+        repo.generate_release(args.gpgkey)
+
+
+if __name__ == "__main__":
+     main()
