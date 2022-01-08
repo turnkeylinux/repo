@@ -1,26 +1,23 @@
-Source: repo
+Source: turnkey-repo
 Section: misc
 Priority: optional
-Maintainer: Alon Swartz <alon@turnkeylinux.org>
+Maintainer: Jeremy Davis <jeremy@turnkeylinux.org>
 Build-Depends:
  debhelper (>= 10),
- python-all (>= 2.6.6-3~),
- pyproject-common,
+ python3-all (>= 3.7~),
+ dh-python,
 Standards-Version: 4.0.0
-X-Python-Version: >= 2.6
 
-Package: repo
+Package: turnkey-repo
 Architecture: any
 Depends:
  apt-utils,
  bzip2,
  ${misc:Depends},
  gzip,
- pyproject-common,
  ${shlibs:Depends},
- turnkey-pylib,
 Recommends:
  gnupg,
 Suggests:
  python-profiler,
-Description: Tools to index and create a Debian package repository
+Description: TurnKey tools to index and create a Debian package repository
