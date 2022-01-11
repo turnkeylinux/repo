@@ -31,7 +31,7 @@ class Repository:
         self.version = version
         self.origin = origin
 
-    def _archive_cmd(self, command: str, input: str, arch: str = ''):
+    def _archive_cmd(self, command: str, input: str, arch: str = '') -> str:
         cwd = os.getcwd()
         os.chdir(self.path)
         com = ['apt-ftparchive', command, input]
@@ -68,15 +68,16 @@ class Repository:
                 zob.writelines(fob)
 
         with open(join(output_dir, 'Release'), "w") as fob:
-            fob.write(f"Origin: {self.origin}\n")
-            fob.write(f"Label: {self.origin}\n")
-            fob.write(f"Archive: {self.release}\n")
-            fob.write(f"Version: {self.version}\n")
-            fob.write(f"Component: {component}\n")
-            fob.write(f"Architecture: {arch}\n")
+            fob.writelines(
+                [f"Origin: {self.origin}\n",
+                 f"Label: {self.origin}\n",
+                 f"Archive: {self.release}\n",
+                 f"Version: {self.version}\n",
+                 f"Component: {component}\n",
+                 f"Architecture: {arch}\n"])
 
-    def generate_release(self, gpgkey=None):
-        def get_archs():
+    def generate_release(self, gpgkey: str = None):
+        def get_archs() -> set:
             archs = set()
             dist_path = join(self.path, 'dists', self.release)
             for component in os.listdir(dist_path):
@@ -103,17 +104,16 @@ class Repository:
 
         hashes = self._archive_cmd('release', release_dir)
         with open(release, "w") as fob:
-            fob.write(f"Origin: {self.origin}\n")
-            fob.write(f"Label: {self.origin}\n")
-            fob.write(f"Suite: {self.release}\n")
-            fob.write(f"Version: {self.version}\n")
-            fob.write(f"Codename: {self.release}\n")
-            fob.write(f"Architectures: {' '.join(get_archs())}\n")
-            fob.write(f"Components: {' '.join(os.listdir(components_dir))}\n")
-            fob.write(f"Description: {self.origin}"
-                      f" {self.release} {self.version}\n")
-            fob.write(hashes)
-            fob.write('\n')
+            fob.writelines(
+                [f"Origin: {self.origin}\n",
+                 f"Label: {self.origin}\n",
+                 f"Suite: {self.release}\n",
+                 f"Version: {self.version}\n",
+                 f"Codename: {self.release}\n",
+                 f"Architectures: {' '.join(get_archs())}\n",
+                 f"Components: {' '.join(os.listdir(components_dir))}\n",
+                 f"Description: {self.origin} {self.release} {self.version}\n",
+                 f"{hashes}\n"])
 
         if gpgkey:
             subprocess.run(["gpg", "-abs", f"-u {gpgkey}",
