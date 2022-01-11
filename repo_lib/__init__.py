@@ -13,6 +13,7 @@ from os.path import exists, join
 import gzip
 import bz2
 import shutil
+From typing import Set
 
 
 class RepoError(Exception):
@@ -37,7 +38,8 @@ class Repository:
         com = ['apt-ftparchive', command, input]
         if arch:
             com.insert(1, f'--arch={arch}')
-        output = subprocess.run(['apt-ftparchive', command, input], text=True)
+        output = subprocess.run(['apt-ftparchive', command, input],
+                                text=True, capture_output=True)
         os.chdir(cwd)
         return output.stdout
 
@@ -55,11 +57,9 @@ class Repository:
 
         output = self._archive_cmd('packages', component_dir, arch=arch)
         with open(join(output_dir, 'Packages'), "w") as fob:
-            if not output:
-                output=""
-            fob.write(output)
             if output:
-                fob.write('\n')
+                output += '\n'
+            fob.write(output)
 
         with open(join(output_dir, 'Packages'), 'rb') as fob:
             with gzip.open(join(output_dir, 'Packages.gz'), 'wb') as zob:
@@ -77,7 +77,7 @@ class Repository:
                  f"Architecture: {arch}\n"])
 
     def generate_release(self, gpgkey: Optional[str] = None):
-        def get_archs() -> set:
+        def get_archs() -> Set[str]:
             archs = set()
             dist_path = join(self.path, 'dists', self.release)
             for component in os.listdir(dist_path):
