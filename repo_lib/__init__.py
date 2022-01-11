@@ -76,7 +76,7 @@ class Repository:
                  f"Component: {component}\n",
                  f"Architecture: {arch}\n"])
 
-    def generate_release(self, gpgkey: str = None):
+    def generate_release(self, gpgkey: Optional[str] = None):
         def get_archs() -> set:
             archs = set()
             dist_path = join(self.path, 'dists', self.release)
