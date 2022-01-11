@@ -39,7 +39,7 @@ class Repository:
             com.insert(1, f'--arch={arch}')
         output = subprocess.run(['apt-ftparchive', command, input], text=True)
         os.chdir(cwd)
-        return output
+        return output.stdout
 
     def index(self, component: str, arch: str):
         component_dir = join(self.pool, component)
@@ -54,11 +54,13 @@ class Repository:
 
         output = self._archive_cmd('packages', component_dir, arch=arch)
         with open(join(output_dir, 'Packages'), "w") as fob:
+            if not output:
+                output=""
             fob.write(output)
             if output:
                 fob.write('\n')
 
-        with open(join(output_dir, 'Packages'), rb) as fob:
+        with open(join(output_dir, 'Packages'), 'rb') as fob:
             with gzip.open(join(output_dir, 'Packages.gz'), 'wb') as zob:
                 zob.writelines(fob)
             with bz2.open(join(output_dir, 'Packages.bz2'), 'wb') as zob:
