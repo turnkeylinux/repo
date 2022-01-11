@@ -57,7 +57,7 @@ def main():
     # process repo-index & repo-release
     unparsed = sys.argv[1:]
     filename = basename(__file__)
-    if filename.startswith('repo-') and filename[5:] in ('index', 'release'):
+    if filename in ("repo-index", "repo-release"):
         unparsed.insert(0, filename[5:])
     args = main_parser.parse_args(unparsed)
 
