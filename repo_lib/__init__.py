@@ -47,8 +47,9 @@ class Repository:
             raise RepoError('component does not exist',
                             join(self.path, component_dir))
 
-        output_dir = (f'{self.path}/dists/{self.release}'
-                      f'{component}/binary-{arch}')
+        output_dir = join(self.path, 'dists', self.release,
+                          component, f'binary-{arch}')
+
         if not exists(output_dir):
             os.makedirs(output_dir)
 
