@@ -121,4 +121,4 @@ class Repository:
                                 "-o", f"{release_gpg}", release],
                                check=True)
             except CalledProcessError as e:
-                raise RepoError(e)
+                raise RepoError(e) from e
