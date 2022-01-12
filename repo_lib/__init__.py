@@ -13,7 +13,7 @@ from os.path import exists, join
 import gzip
 import bz2
 import shutil
-from typing import Set
+from typing import Set, Optional
 
 
 class RepoError(Exception):
