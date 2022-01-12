@@ -116,6 +116,9 @@ class Repository:
                  f"{hashes}\n"])
 
         if gpgkey:
-            subprocess.run(["gpg", "-abs", f"-u {gpgkey}",
-                            f"-o {release_gpg}", release],
-                           text=True)
+            try:
+                subprocess.run(["gpg", "-abs", "-u", f"{gpgkey}",
+                                "-o", f"{release_gpg}", release],
+                               check=True)
+            except CalledProcessError as e:
+                raise RepoError(e)
