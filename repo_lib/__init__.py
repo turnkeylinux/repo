@@ -9,7 +9,7 @@
 
 import subprocess
 import os
-from os.path import exists, join
+from os.path import exists, join, isdir
 import gzip
 import bz2
 import shutil
