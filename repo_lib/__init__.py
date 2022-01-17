@@ -10,9 +10,6 @@
 import subprocess
 import os
 from os.path import exists, join, isdir
-import gzip
-import bz2
-import shutil
 from typing import Set, Optional
 
 
@@ -61,11 +58,8 @@ class Repository:
                 output += '\n'
             fob.write(output)
 
-        with open(join(output_dir, 'Packages'), 'rb') as fob:
-            with gzip.open(join(output_dir, 'Packages.gz'), 'wb') as zob:
-                zob.writelines(fob)
-            with bz2.open(join(output_dir, 'Packages.bz2'), 'wb') as zob:
-                zob.writelines(fob)
+        for command in ['gzip', 'bzip2']:
+            subprocess.run([command, '-k', join(output_dir, 'Packages')])
 
         with open(join(output_dir, 'Release'), "w") as fob:
             fob.writelines(
