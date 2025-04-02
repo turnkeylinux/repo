@@ -11,6 +11,36 @@ import subprocess
 import os
 from os.path import exists, join, isdir
 from typing import Set, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+level = os.getenv('REPO_LOG_LEVEL', '').lower()
+env_debug = os.getenv("DEBUG")
+
+# allow 'DEBUG' env var to override 'REPO_LOG_LEVEL'
+if 'DEBUG' in os.environ.keys():
+    level = 'debug'
+
+loglevel = logging.INFO  # default logging / fallback if unknown log level
+logformat = ('%(asctime)s - [%(levelname)-7s]'
+            ' %(filename)s:%(lineno)4d %(message)s')
+
+if level == 'debug':
+    loglevel = logging.DEBUG
+    logformat = (
+            '%(asctime)s - [%(levelname)-7s]'
+            ' %(filename)s:%(lineno)4d %(funcName)15s(): - %(message)s'
+            )
+elif level in ('warn', 'warning', "default"):
+    loglevel = logging.WARNING
+elif level in ('err', 'error', 'fatal'):
+    loglevel = logging.ERROR
+
+logging.basicConfig(
+    format=logformat,
+    level=loglevel
+    )
 
 
 class RepoError(Exception):
