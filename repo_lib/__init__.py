@@ -9,7 +9,7 @@
 
 import subprocess
 import os
-from os.path import exists, join, isdir
+from os.path import exists, join, isdir, basename
 from typing import Set, Optional
 import logging
 
@@ -48,11 +48,15 @@ class RepoError(Exception):
 
 
 class Repository:
-    def __init__(self, path: str, release: str, pool: str,
-                 version: str, origin: str):
-        if not exists(path):
-            raise RepoError('repository does not exist', path)
 
+    def __init__(self,
+                 path: str,
+                 release: str,
+                 pool: str,
+                 version: str,
+                 origin: str):
+        if not exists(path):
+            raise RepoError(f"repository {path} does not exist")
         self.path = path
         self.release = release
         self.pool = pool
@@ -60,47 +64,65 @@ class Repository:
         self.origin = origin
 
     def _archive_cmd(self, command: str, input: str, arch: str = '') -> str:
+        logger.debug(f"{command=}, {input=}, {arch=}")
         cwd = os.getcwd()
         os.chdir(self.path)
-        com = ['apt-ftparchive', command, input]
+        cmd = ["apt-ftparchive", command, input]
         if arch:
-            com.insert(1, f'--arch={arch}')
-        output = subprocess.run(['apt-ftparchive', command, input],
-                                text=True, capture_output=True)
+            cmd.insert(1, f"--arch={arch}")
+        logger.debug(f"Running: {' '.join(cmd)}")
+        output = subprocess.run(cmd, text=True, capture_output=True)
         os.chdir(cwd)
+        log_stdout = "\n".join(output.stdout.split("\n")[:20])+"\n..."
+        logger.debug(f"stdout (abridged):\n{log_stdout}")
         return output.stdout
 
-    def index(self, component: str, arch: str):
+    def index(self, component: str, arch: str) -> None:
+        logger.debug(f"({component=}, {arch=})")
         component_dir = join(self.pool, component)
         if not exists(join(self.path, component_dir)):
-            raise RepoError('component does not exist',
-                            join(self.path, component_dir))
+            raise RepoError(
+                f"component '{join(self.path, component_dir)}' does not exist"
+                )
 
-        output_dir = join(self.path, 'dists', self.release,
-                          component, f'binary-{arch}')
+        output_dir = join(
+                self.path,
+                "dists",
+                self.release,
+                component,
+                f"binary-{arch}"
+                )
 
-        if not exists(output_dir):
-            os.makedirs(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
 
-        output = self._archive_cmd('packages', component_dir, arch=arch)
-        with open(join(output_dir, 'Packages'), "w") as fob:
+        output = self._archive_cmd("packages", component_dir, arch=arch)
+        packages_file = join(output_dir, "Packages")
+        logger.debug(f"Writing: {packages_file}")
+        with open(packages_file, "w") as fob:
             if output:
                 output += '\n'
             fob.write(output)
 
-        for command in ['gzip', 'bzip2']:
-            subprocess.run([command, '-k', join(output_dir, 'Packages')])
+        for zip in ["gzip", "bzip2", "xz"]:
+            zip_cmd = [join("/usr/bin", zip), "-k", join(output_dir, "Packages")]
+            logger.debug(f"Running: {' '.join(zip_cmd)}")
+            subprocess.run(zip_cmd)
 
-        with open(join(output_dir, 'Release'), "w") as fob:
+        release_file = join(output_dir, 'Release')
+        logger.debug(f"Writing: {release_file}")
+        with open(release_file, "w") as fob:
             fob.writelines(
                 [f"Origin: {self.origin}\n",
                  f"Label: {self.origin}\n",
                  f"Archive: {self.release}\n",
                  f"Version: {self.version}\n",
                  f"Component: {component}\n",
-                 f"Architecture: {arch}\n"])
+                 f"Architecture: {arch}\n"
+                 ]
+                )
 
     def generate_release(self, gpgkey: Optional[str] = None):
+        logger.debug(f"{gpgkey=}")
         def get_archs() -> Set[str]:
             archs = set()
             dist_path = join(self.path, 'dists', self.release)
@@ -113,13 +135,13 @@ class Repository:
                     if binary == 'binary-all':
                         continue
                     archs.add(binary.replace('binary-', ''))
-
+            logger.debug(f"Return: {archs=}")
             return archs
 
         components_dir = join(self.path, self.pool)
         release_dir = join('dists', self.release)
 
-        release = join(self.path, release_dir, 'Release')
+        release_file = join(self.path, release_dir, 'Release')
         release_gpg = join(self.path, release_dir, 'Release.gpg')
 
         for path in (release, release_gpg):
@@ -127,7 +149,8 @@ class Repository:
                 os.remove(path)
 
         hashes = self._archive_cmd('release', release_dir)
-        with open(release, "w") as fob:
+        logger.debug(f"Writing: {release_file}")
+        with open(release_file, "w") as fob:
             fob.writelines(
                 [f"Origin: {self.origin}\n",
                  f"Label: {self.origin}\n",
@@ -141,8 +164,9 @@ class Repository:
 
         if gpgkey:
             try:
-                subprocess.run(["gpg", "-abs", "-u", f"{gpgkey}",
-                                "-o", f"{release_gpg}", release],
-                               check=True)
+                gpg_cmd = ["/usr/bin/gpg", "-abs", "-u", gpgkey,
+                           "-o", release_gpg, release]
+                logger.debug(f"Running: {' '.join(gpg_cmd)}")
+                subprocess.run(gpg_cmd, check=True)
             except CalledProcessError as e:
                 raise RepoError(e) from e
