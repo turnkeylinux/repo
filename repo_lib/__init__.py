@@ -112,12 +112,15 @@ class Repository:
         logger.debug(f"Writing: {release_file}")
         with open(release_file, "w") as fob:
             fob.writelines(
-                [f"Origin: {self.origin}\n",
-                 f"Label: {self.origin}\n",
-                 f"Archive: {self.release}\n",
-                 f"Version: {self.version}\n",
-                 f"Component: {component}\n",
-                 f"Architecture: {arch}\n"
+                [
+                    f"Archive: {self.release}\n",
+                    f"Origin: {self.origin}\n",
+                    f"Label: {self.origin}\n",
+                    f"Version: {self.version}\n",
+                    # TODO implement "Acquire-By-Hash"
+                    # f"Acquire-By-Hash: yes\n",
+                    f"Component: {component}\n",
+                    f"Architecture: {arch}\n"
                  ]
                 )
 
@@ -132,8 +135,6 @@ class Repository:
                     continue
 
                 for binary in os.listdir(component_path):
-                    if binary == 'binary-all':
-                        continue
                     archs.add(binary.replace('binary-', ''))
             logger.debug(f"Return: {archs=}")
             return archs
@@ -149,18 +150,32 @@ class Repository:
                 os.remove(path)
 
         hashes = self._archive_cmd('release', release_dir)
+        day = datetime.now(timezone.utc).strftime("%d %b %Y")
+        date_time = datetime.now(timezone.utc).strftime(
+                            "%a, %d %b %Y %H:%M:%S UTC"
+                            )
         logger.debug(f"Writing: {release_file}")
         with open(release_file, "w") as fob:
             fob.writelines(
-                [f"Origin: {self.origin}\n",
-                 f"Label: {self.origin}\n",
-                 f"Suite: {self.release}\n",
-                 f"Version: {self.version}\n",
-                 f"Codename: {self.release}\n",
-                 f"Architectures: {' '.join(get_archs())}\n",
-                 f"Components: {' '.join(os.listdir(components_dir))}\n",
-                 f"Description: {self.origin} {self.release} {self.version}\n",
-                 f"{hashes}\n"])
+                [
+                    f"Origin: {self.origin}\n",
+                    f"Label: {self.origin}\n",
+                    f"Suite: {self.release}\n",
+                    f"Version: {self.version}\n",
+                    f"Codename: {self.release}\n",
+                    # TODO url for pkg changelogs & other metadata
+                    # f"Changelogs: CHANGELOG_URL_GOES_HERE",
+                    f"Date: {date_time}\n",
+                    # TODO implement "Acquire-By-Hash"
+                    # f"Acquire-By-Hash: yes\n",
+                    # TODO need to look at this more closely; my reading
+                    #   suggests that this might make 'apt update' quicker
+                    # f"No-Support-for-Architecture-all: Packages\n",
+                    f"Architectures: {' '.join(get_archs())}\n",
+                    f"Components: {' '.join(os.listdir(components_dir))}\n",
+                    f"Description: {self.origin} {self.release}"
+                    f" {self.version} Released {day}\n",
+                    f"{hashes}\n"])
 
         if gpgkey:
             try:
