@@ -34,50 +34,71 @@ def fatal(msg: str, help=None):
 
 
 def main():
-    # common arguments
+
+    # XXX common parser & set up
+
+    # note subparsers provide -h|--help
     parent_parser = argparse.ArgumentParser(add_help=False)
+    common_formatter_class=argparse.RawDescriptionHelpFormatter
+    common_env_var_epilog=("env vars:"
+        "\n  REPO_LOG_LEVEL\tset log level when repo called"
+        "\n  DEBUG\t\t\tdebug output (same as 'REPO_LOG_LEVEL=debug')"
+        )
+
     parent_parser.add_argument("path", help="Path to repository")
     parent_parser.add_argument("release", help="Release to act on (e.g. bookworm)")
     parent_parser.add_argument(
             "--pool",
             default="pool",
-            help="Packages pool directory (default: pool)"
+            help="Packages pool directory - default: pool"
             )
     parent_parser.add_argument(
             "--origin",
             default="turnkeylinux",
-            help="Origin to set (default: turnkeylinux)"
+            help="Origin to set - default: turnkeylinux"
             )
     parent_parser.add_argument(
             "--version",
             default="1.0",
-            help=f"Release version to set (default: 1.0)"
+            help=f"Release version to set - default: 1.0"
             )
-    # main parser
+
+    # XXX main parser
     main_parser = argparse.ArgumentParser(
             prog="repo",
-            description="Tool to index and create a Debian package repository"
+            formatter_class=common_formatter_class,
+            description="Tool to index and create a Debian package repository",
+            epilog=common_env_var_epilog,
             )
     subparsers = main_parser.add_subparsers(dest="command")
 
-    # repo-index
+    # XXX repo-index parser
     parser_index = subparsers.add_parser(
             "index",
+            formatter_class=common_formatter_class,
             help="Index repository component",
-            parents=[parent_parser]
+            parents=[parent_parser],
+            epilog=common_env_var_epilog,
             )
-    parser_index.add_argument("component", help="Release component to index (e.g. main)")
+    parser_index.add_argument(
+            "component",
+            help="Release component to index (e.g. main)"
+            )
     parser_index.add_argument(
             "arch",
-            choices=SUPPORTED_ARCH,
-            help="Architecture (e.g. amd64, arm64)"
+            default=HOST_ARCH,
+            nargs='?',
+            help=f"Architecture - default: host arch ({HOST_ARCH}),"
+                 f" valid options: {'|'.join(SUPPORTED_ARCH)}"
             )
     
-    # repo-release
+    # repo-release parser
     parser_release = subparsers.add_parser(
             "release",
+            formatter_class=common_formatter_class,
             help="Generate repository release",
-            parents=[parent_parser]
+            parents=[parent_parser],
+            epilog=common_env_var_epilog,
             )
     parser_release.add_argument(
             "--gpgkey",
@@ -105,4 +126,4 @@ def main():
 
 
 if __name__ == "__main__":
-     main()
+    main()
