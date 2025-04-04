@@ -9,8 +9,10 @@
 
 import subprocess
 import os
-from os.path import exists, join, isdir, basename
-from typing import Set, Optional
+from os.path import exists, join, isdir
+import sys
+from typing import Set
+from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -47,6 +49,24 @@ class RepoError(Exception):
     pass
 
 
+def rm_files(files: list[str] | None = None) -> None:
+    if files:
+        logger.debug(f"Removing: {', '.join(files)}")
+        for file in files:
+            if exists(file):
+                os.remove(file)
+
+
+def run_cmd(cmd: list[str], rm_file: str = "") -> str:
+    logger.debug(f"Running command: {' '.join(cmd)}")
+    output = subprocess.run(cmd, capture_output=True, text=True)
+    if output.returncode != 0:
+        rm_files([rm_file])
+        raise RepoError(output.stderr)
+    else:
+        return output.stdout
+
+
 class Repository:
 
     def __init__(self,
@@ -54,7 +74,9 @@ class Repository:
                  release: str,
                  pool: str,
                  version: str,
-                 origin: str):
+                 origin: str,
+                 quiet: bool = False,
+                 ):
         if not exists(path):
             raise RepoError(f"repository {path} does not exist")
         self.path = path
@@ -62,20 +84,20 @@ class Repository:
         self.pool = pool
         self.version = version
         self.origin = origin
+        self.quiet = quiet
 
     def _archive_cmd(self, command: str, input: str, arch: str = '') -> str:
         logger.debug(f"{command=}, {input=}, {arch=}")
         cwd = os.getcwd()
         os.chdir(self.path)
-        cmd = ["apt-ftparchive", command, input]
+        archive_cmd = ["/usr/bin/apt-ftparchive", command, input]
         if arch:
-            cmd.insert(1, f"--arch={arch}")
-        logger.debug(f"Running: {' '.join(cmd)}")
-        output = subprocess.run(cmd, text=True, capture_output=True)
+            archive_cmd.insert(1, f"--arch={arch}")
+        apt_archive_out = run_cmd(archive_cmd)
         os.chdir(cwd)
-        log_stdout = "\n".join(output.stdout.split("\n")[:20])+"\n..."
+        log_stdout = "\n".join(apt_archive_out.split("\n")[:20])+"\n..."
         logger.debug(f"stdout (abridged):\n{log_stdout}")
-        return output.stdout
+        return apt_archive_out
 
     def index(self, component: str, arch: str) -> None:
         logger.debug(f"({component=}, {arch=})")
@@ -104,9 +126,9 @@ class Repository:
             fob.write(output)
 
         for zip in ["gzip", "bzip2", "xz"]:
-            zip_cmd = [join("/usr/bin", zip), "-k", join(output_dir, "Packages")]
-            logger.debug(f"Running: {' '.join(zip_cmd)}")
-            subprocess.run(zip_cmd)
+            run_cmd(
+                [join("/usr/bin", zip), "-k", join(output_dir, "Packages")]
+                )
 
         release_file = join(output_dir, 'Release')
         logger.debug(f"Writing: {release_file}")
@@ -122,16 +144,10 @@ class Repository:
                     f"Component: {component}\n",
                     f"Architecture: {arch}\n"
                  ]
-                )
+                 )
 
-    def generate_release(
-            self,
-            gpgkey: str = "",
-            ) -> None:
-        if gpgkey:
-            logger.debug(f"{gpgkey=}")
-        else:
-            logger.warning("No GPG key set")
+    def generate_release(self, gpgkey: str = "") -> None:
+
         def get_archs() -> Set[str]:
             archs = set()
             dist_path = join(self.path, 'dists', self.release)
@@ -148,15 +164,14 @@ class Repository:
         components_dir = join(self.path, self.pool)
         release_dir = join('dists', self.release)
 
-        release_files = {}
-        for _file in (
+        release_files: dict[str, str] = {}
+        for rel_file in (
                 "Release", "Release.gpg",
                 "InRelease", "InRelease.tmp"
                 ):
-            _path = join(self.path, release_dir, _file)
-            release_files[_file] = _path
-            if exists(_path):
-                os.remove(_path)
+            rel_path = join(self.path, release_dir, rel_file)
+            release_files[rel_file] = rel_path
+        rm_files(list(release_files.values()))
 
         hashes = self._archive_cmd('release', release_dir)
         day = datetime.now(timezone.utc).strftime("%d %b %Y")
@@ -184,43 +199,47 @@ class Repository:
                     f"Components: {' '.join(os.listdir(components_dir))}\n",
                     f"Description: {self.origin} {self.release}"
                     f" {self.version} Released {day}\n",
-                    f"{hashes}\n"])
+                    f"{hashes}\n"
+                    ]
+               )
 
-        if gpgkey:
-            # no point in generating an "InRelease" file if not gpg key
+        if not gpgkey:
+            gpg_warn = "gpg key not supplied so release file/s unsigned"
+            logger.warning(gpg_warn)
+            if not self.quiet:
+                print(f"Warning: {gpg_warn} - only 'Release' file generated",
+                    file=sys.stderr
+                    )
+        else:
             logger.debug(f"Writing: {release_files['InRelease.tmp']}")
             with open(release_files["InRelease.tmp"], "w") as inrelease_fob:
-                # not sure exactly what this means/does, but following
-                # Debian's lead
+                # not sure exactly what 'Hash' at the top means/does, but
+                # following Debian's lead
                 inrelease_fob.write("Hash: SHA256\n\n")
                 with open(release_files["Release"]) as release_fob:
                     for line in release_fob:
                         inrelease_fob.write(line)
-
             gpg_cmd = [
                     "/usr/bin/gpg",
                     "--armor",
                     "--sign",
                     "--local-user", gpgkey,
                     ]
-            try:
-                for gpg_args in (
-                        [
-                            "--detach-sign",
-                            "--output", release_files["Release.gpg"],
-                            release_files["Release"]
-                            ],
-                        [
-                            "--clearsign",
-                            "--output", release_files["InRelease"],
-                            release_files["InRelease.tmp"]
-                            ]
-                       ):
-                    gpg_cmd.append(gpg_args)
-                    logger.debug(f"Running: {' '.join(gpg_cmd)}")
-                    subprocess.run(gpg_cmd, check=True)
-            except CalledProcessError as e:
-                raise RepoError(e)
-            finally:
-                if exists(release_files["InRelease.tmp"]):
-                    os.remove(release_files["InRelease.tmp"])
+            for gpg_args in (
+                    [
+                        "--detach-sign",
+                        "--output", release_files["Release.gpg"],
+                        release_files["Release"]
+                        ],
+                    [
+                        "--clearsign",
+                        "--output", release_files["InRelease"],
+                        release_files["InRelease.tmp"]
+                        ]
+                    ):
+                gpg_cmd.extend(gpg_args)
+                run_cmd(gpg_cmd, release_files["InRelease.tmp"])
+        log_msg = ["Release file generated"]
+        if gpgkey:
+            log_msg.append(", InRelease file generated and both signed")
+        logger.debug("".join(log_msg))

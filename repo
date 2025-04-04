@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright (c) 2021 TurnKey GNU/Linux - https://www.turnkeylinux.org
+# Copyright (c) 2021-2025 TurnKey GNU/Linux - https://www.turnkeylinux.org
 #
 # This file is part of Repo
 #
@@ -10,7 +10,6 @@
 
 import argparse
 import sys
-import os
 from os.path import basename
 import subprocess
 
@@ -27,7 +26,7 @@ HOST_ARCH = subprocess.run(
 
 
 def fatal(msg: str, help=None):
-    print("error: " + str(msg), file=sys.stderr)
+    print(f"error: {msg}", file=sys.stderr)
     if help:
         help()
     sys.exit(1)
@@ -62,6 +61,12 @@ def main():
             default="1.0",
             help=f"Release version to set - default: 1.0"
             )
+    parent_parser.add_argument(
+            "-q", "--quiet",
+            action="store_true",
+            help="No output when processing"
+            )
+
 
     # XXX main parser
     main_parser = argparse.ArgumentParser(
@@ -91,7 +96,7 @@ def main():
             help=f"Architecture - default: host arch ({HOST_ARCH}),"
                  f" valid options: {'|'.join(SUPPORTED_ARCH)}"
             )
-    
+
     # repo-release parser
     parser_release = subparsers.add_parser(
             "release",
@@ -116,7 +121,7 @@ def main():
         fatal("Subcommand required.", main_parser.print_help)
 
     repo = Repository(args.path, args.release, args.pool,
-                      args.version, args.origin)
+                      args.version, args.origin, args.quiet)
     if args.command == "index":
         if args.arch not in SUPPORTED_ARCH:
             fatal(f"Architecture {args.arch} not supported")
