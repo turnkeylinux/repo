@@ -1,4 +1,4 @@
-# Copyright (c) 2021 TurnKey GNU/Linux - https://www.turnkeylinux.org
+# Copyright (c) 2021-2025 TurnKey GNU/Linux - https://www.turnkeylinux.org
 #
 # This file is part of Repo
 #
@@ -124,8 +124,14 @@ class Repository:
                  ]
                 )
 
-    def generate_release(self, gpgkey: Optional[str] = None):
-        logger.debug(f"{gpgkey=}")
+    def generate_release(
+            self,
+            gpgkey: str = "",
+            ) -> None:
+        if gpgkey:
+            logger.debug(f"{gpgkey=}")
+        else:
+            logger.warning("No GPG key set")
         def get_archs() -> Set[str]:
             archs = set()
             dist_path = join(self.path, 'dists', self.release)
@@ -142,20 +148,23 @@ class Repository:
         components_dir = join(self.path, self.pool)
         release_dir = join('dists', self.release)
 
-        release_file = join(self.path, release_dir, 'Release')
-        release_gpg = join(self.path, release_dir, 'Release.gpg')
-
-        for path in (release, release_gpg):
-            if exists(path):
-                os.remove(path)
+        release_files = {}
+        for _file in (
+                "Release", "Release.gpg",
+                "InRelease", "InRelease.tmp"
+                ):
+            _path = join(self.path, release_dir, _file)
+            release_files[_file] = _path
+            if exists(_path):
+                os.remove(_path)
 
         hashes = self._archive_cmd('release', release_dir)
         day = datetime.now(timezone.utc).strftime("%d %b %Y")
         date_time = datetime.now(timezone.utc).strftime(
                             "%a, %d %b %Y %H:%M:%S UTC"
                             )
-        logger.debug(f"Writing: {release_file}")
-        with open(release_file, "w") as fob:
+        logger.debug(f"Writing: {release_files['Release']}")
+        with open(release_files["Release"], "w") as fob:
             fob.writelines(
                 [
                     f"Origin: {self.origin}\n",
@@ -178,10 +187,40 @@ class Repository:
                     f"{hashes}\n"])
 
         if gpgkey:
+            # no point in generating an "InRelease" file if not gpg key
+            logger.debug(f"Writing: {release_files['InRelease.tmp']}")
+            with open(release_files["InRelease.tmp"], "w") as inrelease_fob:
+                # not sure exactly what this means/does, but following
+                # Debian's lead
+                inrelease_fob.write("Hash: SHA256\n\n")
+                with open(release_files["Release"]) as release_fob:
+                    for line in release_fob:
+                        inrelease_fob.write(line)
+
+            gpg_cmd = [
+                    "/usr/bin/gpg",
+                    "--armor",
+                    "--sign",
+                    "--local-user", gpgkey,
+                    ]
             try:
-                gpg_cmd = ["/usr/bin/gpg", "-abs", "-u", gpgkey,
-                           "-o", release_gpg, release]
-                logger.debug(f"Running: {' '.join(gpg_cmd)}")
-                subprocess.run(gpg_cmd, check=True)
+                for gpg_args in (
+                        [
+                            "--detach-sign",
+                            "--output", release_files["Release.gpg"],
+                            release_files["Release"]
+                            ],
+                        [
+                            "--clearsign",
+                            "--output", release_files["InRelease"],
+                            release_files["InRelease.tmp"]
+                            ]
+                       ):
+                    gpg_cmd.append(gpg_args)
+                    logger.debug(f"Running: {' '.join(gpg_cmd)}")
+                    subprocess.run(gpg_cmd, check=True)
             except CalledProcessError as e:
-                raise RepoError(e) from e
+                raise RepoError(e)
+            finally:
+                if exists(release_files["InRelease.tmp"]):
+                    os.remove(release_files["InRelease.tmp"])
