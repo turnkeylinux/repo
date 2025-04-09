@@ -16,7 +16,7 @@ import subprocess
 from repo_lib import Repository, logger
 
 CODENAMES = ["bookworm", "trixie", "forky"]
-SUPPORTED_ARCH = ["amd64", "arm64"]
+SUPPORTED_ARCH = ["amd64", "arm64", "all"]
 
 HOST_ARCH = subprocess.run(
     ["dpkg", "--print-architecture"],
