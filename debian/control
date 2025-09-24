@@ -4,20 +4,20 @@ Priority: optional
 Maintainer: Jeremy Davis <jeremy@turnkeylinux.org>
 Build-Depends:
  debhelper (>= 10),
- python3-all (>= 3.7~),
  dh-python,
+ pybuild-plugin-pyproject,
+ python3-all (>= 3.11~),
 Standards-Version: 4.0.0
+X-Python-Version: >= 3.11
 
 Package: turnkey-repo
 Architecture: all
 Depends:
  apt-utils,
  bzip2,
- ${misc:Depends},
  gzip,
+ ${misc:Depends},
+ ${python3:Depends},
  ${shlibs:Depends},
-Recommends:
- gnupg,
-Suggests:
- python-profiler,
+Recommends: gnupg
 Description: TurnKey tools to index and create a Debian package repository
