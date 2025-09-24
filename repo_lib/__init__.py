@@ -7,13 +7,12 @@
 # Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 
-import subprocess
-import os
-from os.path import exists, join, isdir
-import sys
-from typing import Set
-from datetime import datetime, timezone
 import logging
+import os
+import subprocess
+import sys
+from datetime import datetime, timezone
+from os.path import exists, isdir, join
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +73,7 @@ class Repository:
         version: str,
         origin: str,
         quiet: bool = False,
-    ):
+    ) -> None:
         if not exists(path):
             raise RepoError(f"repository {path} does not exist")
         self.path = path
@@ -141,7 +140,7 @@ class Repository:
             )
 
     def generate_release(self, gpgkey: str = "") -> None:
-        def get_archs() -> Set[str]:
+        def get_archs() -> set[str]:
             archs = set()
             dist_path = join(self.path, "dists", self.release)
             for component in os.listdir(dist_path):

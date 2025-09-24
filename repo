@@ -9,9 +9,10 @@
 # option) any later version.
 
 import argparse
+import subprocess
 import sys
 from os.path import basename
-import subprocess
+from typing import Callable, NoReturn
 
 from repo_lib import Repository, logger
 
@@ -25,14 +26,14 @@ HOST_ARCH = subprocess.run(
 ).stdout.strip()
 
 
-def fatal(msg: str, help=None):
+def fatal(msg: str, help: Callable[[None], None] | None = None) -> NoReturn:
     print(f"error: {msg}", file=sys.stderr)
     if help:
-        help()
+        help(None)
     sys.exit(1)
 
 
-def main():
+def main() -> None:
     # XXX common parser & set up
 
     # note subparsers provide -h|--help
@@ -49,7 +50,9 @@ def main():
         "release", help="Release to act on (e.g. bookworm)"
     )
     parent_parser.add_argument(
-        "--pool", default="pool", help="Packages pool directory - default: pool"
+        "--pool",
+        default="pool",
+        help="Packages pool directory - default: pool"
     )
     parent_parser.add_argument(
         "--origin",
@@ -59,7 +62,7 @@ def main():
     parent_parser.add_argument(
         "--version",
         default="1.0",
-        help=f"Release version to set - default: 1.0",
+        help="Release version to set - default: 1.0",
     )
     parent_parser.add_argument(
         "-q", "--quiet", action="store_true", help="No output when processing"
