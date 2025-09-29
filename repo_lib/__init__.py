@@ -232,11 +232,10 @@ class Repository:
                     "--clearsign",
                     "--output",
                     release_files["InRelease"],
-                    release_files["InRelease.tmp"],
+                    release_files["Release"],
                 ],
             ):
-                gpg_cmd.extend(gpg_args)
-                run_cmd(gpg_cmd, release_files["InRelease.tmp"])
+                run_cmd([*gpg_cmd, *gpg_args])
         log_msg = ["Release file generated"]
         if gpgkey:
             log_msg.append(", InRelease file generated and both signed")
