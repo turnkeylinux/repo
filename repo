@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright (c) 2021 TurnKey GNU/Linux - https://www.turnkeylinux.org
+# Copyright (c) 2021-2025 TurnKey GNU/Linux - https://www.turnkeylinux.org
 #
 # This file is part of Repo
 #
@@ -9,68 +9,127 @@
 # option) any later version.
 
 import argparse
+import subprocess
 import sys
 from os.path import basename
+from typing import Callable, NoReturn
 
-from repo_lib import Repository
+from repo_lib import Repository, logger
+
+CODENAMES = ["bookworm", "trixie", "forky"]
+SUPPORTED_ARCH = ["amd64", "arm64", "all"]
+
+HOST_ARCH = subprocess.run(
+    ["dpkg", "--print-architecture"],
+    capture_output=True,
+    text=True,
+).stdout.strip()
 
 
-def fatal(msg: str, help=None):
-    print("error: " + str(msg), file=sys.stderr)
+def fatal(msg: str, help: Callable[[None], None] | None = None) -> NoReturn:
+    print(f"error: {msg}", file=sys.stderr)
     if help:
-        help()
+        help(None)
     sys.exit(1)
 
 
-def main():
-    # common arguments
-    parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument("path", help="Path to repository")
-    parent_parser.add_argument("release", help="Release to act on")
-    parent_parser.add_argument(
-                '--pool', default="pool",
-                help="Packages pool directory (default: pool)")
-    parent_parser.add_argument(
-                "--origin", default="turnkeylinux",
-                help="Origin to set (default: turnkeylinux)")
-    parent_parser.add_argument(
-                "--version", default="1.0",
-                help="Release version to set (default: 1.0)")
-    # main parser
-    main_parser = argparse.ArgumentParser(
-            prog="repo",
-            description="Tool to index and create a Debian package repository")
-    subparsers = main_parser.add_subparsers(dest='command')
+def main() -> None:
+    # common repo parser; subparsers provide -h|--help
+    common_parser = argparse.ArgumentParser(add_help=False)
+    common_formatter_class = argparse.RawDescriptionHelpFormatter
+    common_env_var_epilog = (
+        "env vars:"
+        "\n  REPO_LOG_LEVEL\tset log level when repo called"
+        "\n  DEBUG\t\t\tdebug output (same as 'REPO_LOG_LEVEL=debug')"
+    )
 
-    # repo-index
-    parser_index = subparsers.add_parser(
-            "index", help="Index repository component", parents=[parent_parser])
-    parser_index.add_argument("component", help="Release component to index")
-    parser_index.add_argument("arch", help="Architecture (e.g., i386, amd64)")
-    
-    # repo-release
-    parser_release = subparsers.add_parser(
-            "release", help="Generate repository release", parents=[parent_parser])
-    parser_release.add_argument("--gpgkey",
-                                help="GPG Key to use when signing the release")
+    common_parser.add_argument("path", help="Path to repository")
+    common_parser.add_argument(
+        "release", help="Release to act on (e.g. bookworm)"
+    )
+    common_parser.add_argument(
+        "--pool",
+        default="pool",
+        help="Packages pool directory - default: pool"
+    )
+    common_parser.add_argument(
+        "--origin",
+        default="turnkeylinux",
+        help="Origin to set - default: turnkeylinux",
+    )
+    common_parser.add_argument(
+        "--version",
+        default="1.0",
+        help="Release version to set - default: 1.0",
+    )
+    common_parser.add_argument(
+        "-q", "--quiet", action="store_true", help="No output when processing"
+    )
+
+    # main repo command parser
+    repo_parser = argparse.ArgumentParser(
+        prog="repo",
+        formatter_class=common_formatter_class,
+        description="Tool to index and create a Debian package repository",
+        epilog=common_env_var_epilog,
+    )
+
+    # repo-index and repo-release specific parsers
+    subparsers = repo_parser.add_subparsers(dest="command")
+
+    repo_index_parser = subparsers.add_parser(
+        "index",
+        formatter_class=common_formatter_class,
+        help="Index repository component",
+        parents=[common_parser],
+        epilog=common_env_var_epilog,
+    )
+    repo_index_parser.add_argument(
+        "component", help="Release component to index (e.g. main)"
+    )
+    repo_index_parser.add_argument(
+        "arch",
+        default=HOST_ARCH,
+        nargs="?",
+        help=f"Architecture - default: host arch ({HOST_ARCH}),"
+        f" valid options: {'|'.join(SUPPORTED_ARCH)}",
+    )
+    repo_release_parser = subparsers.add_parser(
+        "release",
+        formatter_class=common_formatter_class,
+        help="Generate repository release",
+        parents=[common_parser],
+        epilog=common_env_var_epilog,
+    )
+    repo_release_parser.add_argument(
+        "--gpgkey", help="GPG Key to use when signing the release"
+    )
 
     # process repo-index & repo-release
     unparsed = sys.argv[1:]
     filename = basename(__file__)
     if filename in ("repo-index", "repo-release"):
         unparsed.insert(0, filename[5:])
-    args = main_parser.parse_args(unparsed)
-
+    args = repo_parser.parse_args(unparsed)
+    logger.debug(f"{args=}")
     if not args.command:
-        fatal("Subcommand required.", main_parser.print_help)
+        fatal("Subcommand required.", repo_parser.print_help)
 
-    repo = Repository(args.path, args.release, args.pool,
-                      args.version, args.origin)
-    if args.command == 'index':
+    repo = Repository(
+        args.path,
+        args.release,
+        args.pool,
+        args.version,
+        args.origin,
+        args.quiet,
+    )
+    if args.command == "index":
+        if args.arch not in SUPPORTED_ARCH:
+            fatal(f"Architecture {args.arch} not supported")
         repo.index(args.component, args.arch)
-    elif args.command == 'release':
+    elif args.command == "release":
         repo.generate_release(args.gpgkey)
 
 
 if __name__ == "__main__":
-     main()
+    main()
