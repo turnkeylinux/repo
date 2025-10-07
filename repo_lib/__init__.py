@@ -210,7 +210,6 @@ class Repository:
             with open(release_files["InRelease.tmp"], "w") as inrelease_fob:
                 # not sure exactly what 'Hash' at the top means/does, but
                 # following Debian's lead
-                inrelease_fob.write("Hash: SHA256\n\n")
                 with open(release_files["Release"]) as release_fob:
                     for line in release_fob:
                         inrelease_fob.write(line)
