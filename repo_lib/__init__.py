@@ -50,14 +50,14 @@ class RepoError(Exception):
 
 def rm_files(files: list[str] | None = None) -> None:
     if files:
-        logger.debug(f"Removing: {', '.join(files)}")
+        logger.debug("Removing: %s", ", ".join(files))
         for file in files:
             if exists(file):
                 os.remove(file)
 
 
 def run_cmd(cmd: list[str], rm_file: str = "") -> str:
-    logger.debug(f"Running command: {' '.join(cmd)}")
+    logger.debug("Running command: %s", " ".join(cmd))
     output = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if output.returncode != 0:
         rm_files([rm_file])
@@ -87,7 +87,9 @@ class Repository:
     def _archive_cmd(
         self, command: str, input_str: str, arch: str = "",
     ) -> str:
-        logger.debug(f"{command=}, {input_str=}, {arch=}")
+        logger.debug(
+            "command=%r, input_str=%r, arch=%r", command, input_str, arch,
+        )
         cwd = os.getcwd()
         os.chdir(self.path)
         archive_cmd: list[str] = [
@@ -98,11 +100,11 @@ class Repository:
         apt_archive_out = run_cmd(archive_cmd)
         os.chdir(cwd)
         log_stdout = "\n".join(apt_archive_out.split("\n")[:20]) + "\n..."
-        logger.debug(f"stdout (abridged):\n{log_stdout}")
+        logger.debug("stdout (abridged):\n%s", log_stdout)
         return apt_archive_out
 
     def index(self, component: str, arch: str) -> None:
-        logger.debug(f"({component=}, {arch=})")
+        logger.debug("(component=%r, arch=%r)", component, arch)
         component_dir = join(self.pool, component)
         if not exists(join(self.path, component_dir)):
             raise RepoError(
@@ -117,7 +119,7 @@ class Repository:
 
         output = self._archive_cmd("packages", component_dir, arch=arch)
         packages_file = join(output_dir, "Packages")
-        logger.debug(f"Writing: {packages_file}")
+        logger.debug("Writing: %s", packages_file)
         with open(packages_file, "w") as fob:
             if output:
                 output += "\n"
@@ -133,7 +135,7 @@ class Repository:
             )
 
         release_file = join(output_dir, "Release")
-        logger.debug(f"Writing: {release_file}")
+        logger.debug("Writing: %s", release_file)
         with open(release_file, "w") as fob:
             fob.writelines(
                 [
@@ -159,7 +161,7 @@ class Repository:
 
                 for binary in os.listdir(component_path):
                     archs.add(binary.replace("binary-", ""))
-            logger.debug(f"Return: {archs=}")
+            logger.debug("Return: archs=%r", archs)
             return archs
 
         components_dir = join(self.path, self.pool)
@@ -181,7 +183,7 @@ class Repository:
         date_time = datetime.now(UTC).strftime(
             "%a, %d %b %Y %H:%M:%S UTC",
         )
-        logger.debug(f"Writing: {release_files['Release']}")
+        logger.debug("Writing: %s", release_files["Release"])
         with open(release_files["Release"], "w") as fob:
             fob.writelines(
                 [
@@ -215,7 +217,7 @@ class Repository:
                     file=sys.stderr,
                 )
         else:
-            logger.debug(f"Writing: {release_files['InRelease.tmp']}")
+            logger.debug("Writing: %s", release_files["InRelease.tmp"])
             with (
                 open(
                     release_files["InRelease.tmp"], "w",
