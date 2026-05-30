@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2025 TurnKey GNU/Linux - https://www.turnkeylinux.org
+# Copyright (c) 2021-2026 TurnKey GNU/Linux - https://www.turnkeylinux.org
 #
 # This file is part of Repo
 #
@@ -7,11 +7,13 @@
 # Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 
+"""repo_lib - Generation of required components for an apt repository."""
+
 import logging
 import os
 import subprocess
 import sys
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from os.path import exists, isdir, join
 
 logger = logging.getLogger(__name__)
@@ -82,11 +84,15 @@ class Repository:
         self.origin = origin
         self.quiet = quiet
 
-    def _archive_cmd(self, command: str, input: str, arch: str = "") -> str:
-        logger.debug(f"{command=}, {input=}, {arch=}")
+    def _archive_cmd(
+        self, command: str, input_str: str, arch: str = "",
+    ) -> str:
+        logger.debug(f"{command=}, {input_str=}, {arch=}")
         cwd = os.getcwd()
         os.chdir(self.path)
-        archive_cmd = ["/usr/bin/apt-ftparchive", command, input]
+        archive_cmd: list[str] = [
+            "/usr/bin/apt-ftparchive", command, input_str,
+        ]
         if arch:
             archive_cmd.insert(1, f"--arch={arch}")
         apt_archive_out = run_cmd(archive_cmd)
@@ -117,9 +123,13 @@ class Repository:
                 output += "\n"
             fob.write(output)
 
-        for zip in ["gzip", "bzip2", "xz"]:
+        for archive in ["gzip", "bzip2", "xz"]:
             run_cmd(
-                [join("/usr/bin", zip), "-k", join(output_dir, "Packages")],
+                [
+                    join("/usr/bin", archive),
+                    "-k",
+                    join(output_dir, "Packages"),
+                ],
             )
 
         release_file = join(output_dir, "Release")
@@ -132,7 +142,7 @@ class Repository:
                     f"Label: {self.origin}\n",
                     f"Version: {self.version}\n",
                     # TODO implement "Acquire-By-Hash"
-                    # f"Acquire-By-Hash: yes\n",
+                    # > f"Acquire-By-Hash: yes\n",
                     f"Component: {component}\n",
                     f"Architecture: {arch}\n",
                 ],
@@ -181,13 +191,13 @@ class Repository:
                     f"Version: {self.version}\n",
                     f"Codename: {self.release}\n",
                     # TODO url for pkg changelogs & other metadata
-                    # f"Changelogs: CHANGELOG_URL_GOES_HERE",
+                    # > f"Changelogs: CHANGELOG_URL_GOES_HERE",
                     f"Date: {date_time}\n",
                     # TODO implement "Acquire-By-Hash"
-                    # f"Acquire-By-Hash: yes\n",
+                    # > f"Acquire-By-Hash: yes\n",
                     # TODO need to look at this more closely; my reading
                     #   suggests that this might make 'apt update' quicker
-                    # f"No-Support-for-Architecture-all: Packages\n",
+                    # > f"No-Support-for-Architecture-all: Packages\n",
                     f"Architectures: {' '.join(get_archs())}\n",
                     f"Components: {' '.join(os.listdir(components_dir))}\n",
                     f"Description: {self.origin} {self.release}"
@@ -206,11 +216,14 @@ class Repository:
                 )
         else:
             logger.debug(f"Writing: {release_files['InRelease.tmp']}")
-            with open(release_files["InRelease.tmp"], "w") as inrelease_fob:
-                # not sure exactly what 'Hash' at the top means/does, but
-                # following Debian's lead
-                with open(release_files["Release"]) as release_fob:
-                    inrelease_fob.writelines(release_fob)
+            with (
+                open(
+                    release_files["InRelease.tmp"], "w",
+                ) as inrelease_fob,
+                open(release_files["Release"]) as release_fob,
+            ):
+                inrelease_fob.writelines(release_fob)
+
             gpg_cmd = [
                 "/usr/bin/gpg",
                 "--armor",

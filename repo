@@ -8,6 +8,12 @@
 # Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 
+"""repo - Tool to generate apt repo filetree and relevant metadata files.
+
+This file includes argument handling and provides a thin wrapper around the
+relevant repo_lib.Repository() method.
+"""
+
 import argparse
 import subprocess
 import sys
