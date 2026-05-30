@@ -33,6 +33,12 @@ HOST_ARCH = subprocess.run(
     check=False,
 ).stdout.strip()
 
+ENV_VARS_HELP = """\
+env vars:
+    REPO_LOG_LEVEL set log level when repo called
+    DEBUG          debug output (same as 'REPO_LOG_LEVEL=debug')
+"""
+
 
 def fatal(
     msg: str,
@@ -48,11 +54,7 @@ def main() -> None:
     # common repo parser; subparsers provide -h|--help
     common_parser = argparse.ArgumentParser(add_help=False)
     common_formatter_class = argparse.RawDescriptionHelpFormatter
-    common_env_var_epilog = (
-        "env vars:"
-        "\n  REPO_LOG_LEVEL\tset log level when repo called"
-        "\n  DEBUG\t\t\tdebug output (same as 'REPO_LOG_LEVEL=debug')"
-    )
+    common_env_var_epilog = (ENV_VARS_HELP)
 
     common_parser.add_argument("path", help="Path to repository")
     common_parser.add_argument(
