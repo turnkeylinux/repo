@@ -56,9 +56,15 @@ def rm_files(files: list[str] | None = None) -> None:
                 os.remove(file)
 
 
-def run_cmd(cmd: list[str], rm_file: str = "") -> str:
+def run_cmd(
+    cmd: list[str],
+    rm_file: str = "",
+    env: dict[str, str] | None = None,
+) -> str:
     logger.debug("Running command: %s", " ".join(cmd))
-    output = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    output = subprocess.run(
+        cmd, capture_output=True, text=True, check=False, env=env,
+    )
     if output.returncode != 0:
         rm_files([rm_file])
         raise RepoError(output.stderr)
@@ -150,7 +156,7 @@ class Repository:
                 ],
             )
 
-    def generate_release(self, gpgkey: str = "") -> None:
+    def generate_release(self, gpgkey: str = "", gnupghome: str = "") -> None:
         def get_archs() -> set[str]:
             archs = set()
             dist_path = join(self.path, "dists", self.release)
@@ -226,6 +232,10 @@ class Repository:
             ):
                 inrelease_fob.writelines(release_fob)
 
+            gpg_env: dict[str, str] | None = None
+            if gnupghome:
+                gpg_env = {**os.environ, "GNUPGHOME": gnupghome}
+
             gpg_cmd = [
                 "/usr/bin/gpg",
                 "--armor",
@@ -247,7 +257,7 @@ class Repository:
                     release_files["InRelease.tmp"],
                 ],
             ):
-                run_cmd([*gpg_cmd, *gpg_args])
+                run_cmd([*gpg_cmd, *gpg_args], env=gpg_env)
         log_msg = ["Release file generated"]
         if gpgkey:
             log_msg.append(", InRelease file generated and both signed")

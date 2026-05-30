@@ -54,7 +54,7 @@ def main() -> None:
     # common repo parser; subparsers provide -h|--help
     common_parser = argparse.ArgumentParser(add_help=False)
     common_formatter_class = argparse.RawDescriptionHelpFormatter
-    common_env_var_epilog = (ENV_VARS_HELP)
+    common_env_var_epilog = ENV_VARS_HELP
 
     common_parser.add_argument("path", help="Path to repository")
     common_parser.add_argument(
@@ -107,6 +107,7 @@ def main() -> None:
         help=f"Architecture - default: host arch ({HOST_ARCH}),"
         f" valid options: {'|'.join(SUPPORTED_ARCH)}",
     )
+
     repo_release_parser = subparsers.add_parser(
         "release",
         formatter_class=common_formatter_class,
@@ -114,8 +115,82 @@ def main() -> None:
         parents=[common_parser],
         epilog=common_env_var_epilog,
     )
+    gpg_group = repo_release_parser.add_mutually_exclusive_group()
+    gpg_group.add_argument(
+        "--gpgkey", help="GPG key to use when signing the release",
+    )
+    gpg_group.add_argument(
+        "--gen-key",
+        action="store_true",
+        help="Generate a temporary 4096-bit RSA signing key",
+    )
     repo_release_parser.add_argument(
-        "--gpgkey", help="GPG Key to use when signing the release",
+        "--key-expiry",
+        default="10y",
+        metavar="EXPIRY",
+        help="Key expiry for --gen-key (default: 10y)",
+    )
+
+    repo_download_parser = subparsers.add_parser(
+        "download",
+        formatter_class=common_formatter_class,
+        help="Resolve and download packages into pool",
+        epilog=common_env_var_epilog,
+    )
+    repo_download_parser.add_argument("path", help="Path to repository")
+    repo_download_parser.add_argument(
+        "release", help="Release to target (e.g. trixie)",
+    )
+    repo_download_parser.add_argument(
+        "component", help="Pool component (e.g. main)",
+    )
+    repo_download_parser.add_argument(
+        "arch", help="Architecture (e.g. amd64)",
+    )
+    repo_download_parser.add_argument(
+        "packages", nargs="+", metavar="package",
+        help="Package(s) to resolve and download",
+    )
+    repo_download_parser.add_argument(
+        "--pool", default="pool",
+        help="Pool directory - default: pool",
+    )
+    repo_download_parser.add_argument(
+        "--chroot", default="", metavar="PATH",
+        help="Path to target rootfs chroot - default: none (use host)",
+    )
+
+    repo_client_config_parser = subparsers.add_parser(
+        "client-config",
+        formatter_class=common_formatter_class,
+        help="Generate client apt configuration files",
+        epilog=common_env_var_epilog,
+    )
+    repo_client_config_parser.add_argument("path", help="Path to repository")
+    repo_client_config_parser.add_argument(
+        "release", help="Release (e.g. trixie)",
+    )
+    repo_client_config_parser.add_argument(
+        "component", help="Component (e.g. main)",
+    )
+    repo_client_config_parser.add_argument(
+        "arch", help="Architecture (e.g. amd64)",
+    )
+    repo_client_config_parser.add_argument(
+        "--pool", default="pool",
+        help="Pool directory - default: pool",
+    )
+    repo_client_config_parser.add_argument(
+        "--output", default=".", metavar="DIR",
+        help="Output directory - default: current directory",
+    )
+    repo_client_config_parser.add_argument(
+        "--uri", required=True,
+        help="Repo URI as clients will access it",
+    )
+    repo_client_config_parser.add_argument(
+        "--name", default="",
+        help="Base name for output files - default: repo path basename",
     )
 
     # process repo-index & repo-release
@@ -128,20 +203,55 @@ def main() -> None:
     if not args.command:
         fatal("Subcommand required.", repo_parser.print_help)
 
-    repo = Repository(
-        args.path,
-        args.release,
-        args.pool,
-        args.version,
-        args.origin,
-        args.quiet,
-    )
     if args.command == "index":
+        repo = Repository(
+            args.path,
+            args.release,
+            args.pool,
+            args.version,
+            args.origin,
+            args.quiet,
+        )
         if args.arch not in SUPPORTED_ARCH:
             fatal(f"Architecture {args.arch} not supported")
         repo.index(args.component, args.arch)
+
     elif args.command == "release":
-        repo.generate_release(args.gpgkey)
+        repo = Repository(
+            args.path,
+            args.release,
+            args.pool,
+            args.version,
+            args.origin,
+            args.quiet,
+        )
+        if args.gen_key:
+            from repo_lib.gpg import gen_and_sign
+            gen_and_sign(repo, args.key_expiry)
+        else:
+            repo.generate_release(args.gpgkey or "")
+
+    elif args.command == "download":
+        from repo_lib.download import populate_pool
+        populate_pool(
+            args.path,
+            args.pool,
+            args.component,
+            args.packages,
+            args.chroot,
+        )
+
+    elif args.command == "client-config":
+        from repo_lib.client import write_client_config
+        write_client_config(
+            args.path,
+            args.release,
+            args.component,
+            args.arch,
+            args.uri,
+            args.output,
+            args.name,
+        )
 
 
 if __name__ == "__main__":
