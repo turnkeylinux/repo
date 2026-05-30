@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright (c) 2021-2025 TurnKey GNU/Linux - https://www.turnkeylinux.org
+# Copyright (c) 2021-2026 TurnKey GNU/Linux - https://www.turnkeylinux.org
 #
 # This file is part of Repo
 #
@@ -11,8 +11,9 @@
 import argparse
 import subprocess
 import sys
+from collections.abc import Callable
 from os.path import basename
-from typing import Callable, NoReturn
+from typing import NoReturn
 
 from repo_lib import Repository, logger
 
@@ -20,15 +21,19 @@ CODENAMES = ["bookworm", "trixie", "forky"]
 SUPPORTED_ARCH = ["amd64", "arm64", "all"]
 
 HOST_ARCH = subprocess.run(
-    ["dpkg", "--print-architecture"],
+    ["/usr/bin/dpkg", "--print-architecture"],
     capture_output=True,
     text=True,
+    check=False,
 ).stdout.strip()
 
 
-def fatal(msg: str, help: Callable[[None], None] | None = None) -> NoReturn:
+def fatal(
+    msg: str,
+    help_func: Callable[[None], None] | None = None,
+) -> NoReturn:
     print(f"error: {msg}", file=sys.stderr)
-    if help:
+    if help_func:
         help(None)
     sys.exit(1)
 
@@ -45,12 +50,12 @@ def main() -> None:
 
     common_parser.add_argument("path", help="Path to repository")
     common_parser.add_argument(
-        "release", help="Release to act on (e.g. bookworm)"
+        "release", help="Release to act on (e.g. bookworm)",
     )
     common_parser.add_argument(
         "--pool",
         default="pool",
-        help="Packages pool directory - default: pool"
+        help="Packages pool directory - default: pool",
     )
     common_parser.add_argument(
         "--origin",
@@ -63,7 +68,7 @@ def main() -> None:
         help="Release version to set - default: 1.0",
     )
     common_parser.add_argument(
-        "-q", "--quiet", action="store_true", help="No output when processing"
+        "-q", "--quiet", action="store_true", help="No output when processing",
     )
 
     # main repo command parser
@@ -85,7 +90,7 @@ def main() -> None:
         epilog=common_env_var_epilog,
     )
     repo_index_parser.add_argument(
-        "component", help="Release component to index (e.g. main)"
+        "component", help="Release component to index (e.g. main)",
     )
     repo_index_parser.add_argument(
         "arch",
@@ -102,7 +107,7 @@ def main() -> None:
         epilog=common_env_var_epilog,
     )
     repo_release_parser.add_argument(
-        "--gpgkey", help="GPG Key to use when signing the release"
+        "--gpgkey", help="GPG Key to use when signing the release",
     )
 
     # process repo-index & repo-release

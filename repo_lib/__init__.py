@@ -11,7 +11,7 @@ import logging
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from os.path import exists, isdir, join
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ level = os.getenv("REPO_LOG_LEVEL", "").lower()
 env_debug = os.getenv("DEBUG")
 
 # allow 'DEBUG' env var to override 'REPO_LOG_LEVEL'
-if "DEBUG" in os.environ.keys():
+if "DEBUG" in os.environ:
     level = "debug"
 
 loglevel = logging.INFO  # default logging / fallback if unknown log level
@@ -56,12 +56,11 @@ def rm_files(files: list[str] | None = None) -> None:
 
 def run_cmd(cmd: list[str], rm_file: str = "") -> str:
     logger.debug(f"Running command: {' '.join(cmd)}")
-    output = subprocess.run(cmd, capture_output=True, text=True)
+    output = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if output.returncode != 0:
         rm_files([rm_file])
         raise RepoError(output.stderr)
-    else:
-        return output.stdout
+    return output.stdout
 
 
 class Repository:
@@ -101,11 +100,11 @@ class Repository:
         component_dir = join(self.pool, component)
         if not exists(join(self.path, component_dir)):
             raise RepoError(
-                f"component '{join(self.path, component_dir)}' does not exist"
+                f"component '{join(self.path, component_dir)}' does not exist",
             )
 
         output_dir = join(
-            self.path, "dists", self.release, component, f"binary-{arch}"
+            self.path, "dists", self.release, component, f"binary-{arch}",
         )
 
         os.makedirs(output_dir, exist_ok=True)
@@ -120,7 +119,7 @@ class Repository:
 
         for zip in ["gzip", "bzip2", "xz"]:
             run_cmd(
-                [join("/usr/bin", zip), "-k", join(output_dir, "Packages")]
+                [join("/usr/bin", zip), "-k", join(output_dir, "Packages")],
             )
 
         release_file = join(output_dir, "Release")
@@ -136,7 +135,7 @@ class Repository:
                     # f"Acquire-By-Hash: yes\n",
                     f"Component: {component}\n",
                     f"Architecture: {arch}\n",
-                ]
+                ],
             )
 
     def generate_release(self, gpgkey: str = "") -> None:
@@ -168,9 +167,9 @@ class Repository:
         rm_files(list(release_files.values()))
 
         hashes = self._archive_cmd("release", release_dir)
-        day = datetime.now(timezone.utc).strftime("%d %b %Y")
-        date_time = datetime.now(timezone.utc).strftime(
-            "%a, %d %b %Y %H:%M:%S UTC"
+        day = datetime.now(UTC).strftime("%d %b %Y")
+        date_time = datetime.now(UTC).strftime(
+            "%a, %d %b %Y %H:%M:%S UTC",
         )
         logger.debug(f"Writing: {release_files['Release']}")
         with open(release_files["Release"], "w") as fob:
@@ -194,7 +193,7 @@ class Repository:
                     f"Description: {self.origin} {self.release}"
                     f" {self.version} Released {day}\n",
                     f"{hashes}\n",
-                ]
+                ],
             )
 
         if not gpgkey:
@@ -211,8 +210,7 @@ class Repository:
                 # not sure exactly what 'Hash' at the top means/does, but
                 # following Debian's lead
                 with open(release_files["Release"]) as release_fob:
-                    for line in release_fob:
-                        inrelease_fob.write(line)
+                    inrelease_fob.writelines(release_fob)
             gpg_cmd = [
                 "/usr/bin/gpg",
                 "--armor",
