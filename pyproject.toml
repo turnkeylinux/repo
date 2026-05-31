@@ -9,7 +9,7 @@ authors = [{name = "TurnKey GNU/Linux", email = "jeremy@turnkeylinux.org"}]
 description = "TurnKey tools to index and create a Debian package repository"
 readme = "README.md"
 requires-python = ">=3.13"  # probably works with older versions of python3
-license = "GPLv3"
+license = "GPL-3.0-only"
 dependencies = ["chroot"]  # otherwise stdlib only; system tools via subprocess
 
 [project.urls]

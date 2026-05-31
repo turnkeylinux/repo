@@ -1,14 +1,16 @@
 Source: turnkey-repo
 Section: misc
-Priority: optional
 Maintainer: Jeremy Davis <jeremy@turnkeylinux.org>
 Build-Depends:
- debhelper (>= 10),
+ debhelper-compat (= 13),
+ python3 (>= 3.13),
  dh-python,
  pybuild-plugin-pyproject,
- python3-all (>= 3.11~),
-Standards-Version: 4.0.0
-X-Python-Version: >= 3.11
+ python3-pytest,
+ turnkey-chroot,
+Standards-Version: 4.7.2
+Vcs-Git: https://github.com/turnkeylinux/repo.git
+Vcs-Browser: https://github.com/turnkeylinux/repo
 
 Package: turnkey-repo
 Architecture: all
@@ -19,5 +21,7 @@ Depends:
  ${misc:Depends},
  ${python3:Depends},
  ${shlibs:Depends},
-Recommends: gnupg
+Recommends:
+ gnupg,
+ turnkey-chroot,
 Description: TurnKey tools to index and create a Debian package repository
