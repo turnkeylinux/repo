@@ -1,13 +1,16 @@
 [build-system]
-requires = ["setuptools>=61.2"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "repo"
-version = "2.0"
+version = "2.1"
 authors = [{name = "TurnKey GNU/Linux", email = "jeremy@turnkeylinux.org"}]
-license = {text = "GPLv3+"}
 description = "TurnKey tools to index and create a Debian package repository"
+readme = "README.md"
+requires-python = ">=3.13"  # probably works with older versions of python3
+license = "GPLv3"
+dependencies = ["chroot"]  # otherwise stdlib only; system tools via subprocess
 
 [project.urls]
 Homepage = "https://github.com/turnkeylinux/repo"
@@ -16,3 +19,73 @@ Homepage = "https://github.com/turnkeylinux/repo"
 packages = ["repo_lib"]
 script-files = ["repo"]
 include-package-data = false
+
+[tool.setuptools.package-data]
+repo_lib = ["py.typed"]
+
+[tool.ruff]
+line-length = 79
+indent-width = 4
+target-version = "py313"
+exclude = [".git", "__pycache__"]
+
+[tool.ruff.lint]
+# Enable all rules by default - then exclude specific ones as required
+select = ["ALL"]
+ignore = [
+    # CAUTION: allow "untrusted" subprocess command/s
+    # - see https://docs.astral.sh/ruff/rules/subprocess-without-shell-equals-true/
+    # The intent of "S603" is good, but the implmentation is prone to false
+    # positives which is a PITA...
+    "S603",
+
+    # 'incorrect-blank-line-before-class' (D203) and
+    # 'no-blank-line-before-class' (D211) are incompatible
+    "D211",
+
+    # 'multi-line-summary-first-line' (D212) and
+    # 'multi-line-summary-second-line` (D213) are incompatible
+    "D213",
+
+    # silence TODO format warnings - but keep FIX002 ("consider fixing")
+    "TD002", "TD003", "TD004",
+
+    # allow usage of print()
+    "T201",
+
+    # don't enforce use of pathlib.Path
+    "PTH", "PTH118", "PTH119", "PTH123",
+
+    # allow usage of bool args in functions/methods
+    "FBT001", "FBT002",
+
+    # don't complain about function/method complexity
+    "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+
+    # don't enforce docstrings in all classes, methods, functions or packages
+    "D101", "D102", "D103", "D104", "D107",
+
+    # don't enforce blank line before or after class docstring
+    "D203", "D204",
+
+    # disable restrictions on exception strings
+    "EM101", "EM102", "TRY003",
+
+    # formatter conflict - trailing comma enforcement clashes with ruff format
+    "COM812",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S607", "SIM115"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = false
+docstring-code-line-length = "dynamic"
+
+[tool.mypy]
+# use local type stubs (generated with stubgen)
+mypy_path = "type_stubs"
