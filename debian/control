@@ -8,6 +8,10 @@ Build-Depends:
  pybuild-plugin-pyproject,
  python3-pytest,
  turnkey-chroot,
+ apt-utils,
+ bzip2,
+ gzip,
+ gnupg,
 Standards-Version: 4.7.2
 Vcs-Git: https://github.com/turnkeylinux/repo.git
 Vcs-Browser: https://github.com/turnkeylinux/repo
