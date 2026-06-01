@@ -16,7 +16,26 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REPO_SCRIPT = join(PROJECT_DIR, "repo")
+
+
+def _find_repo_script() -> str:
+    # Under pybuild the build tree does not contain the repo launcher, so
+    # walk up from the test directory to the source checkout that holds
+    # both the script and the repo_lib package.
+    directory = PROJECT_DIR
+    while True:
+        candidate = join(directory, "repo")
+        if os.path.isfile(candidate) and os.path.isdir(
+            join(directory, "repo_lib"),
+        ):
+            return candidate
+        parent = os.path.dirname(directory)
+        if parent == directory:
+            return join(PROJECT_DIR, "repo")
+        directory = parent
+
+
+REPO_SCRIPT = _find_repo_script()
 
 
 def run_repo(*args: str) -> subprocess.CompletedProcess[str]:
