@@ -103,8 +103,10 @@ class Repository:
         ]
         if arch:
             archive_cmd.insert(1, f"--arch={arch}")
-        apt_archive_out = run_cmd(archive_cmd)
-        os.chdir(cwd)
+        try:
+            apt_archive_out = run_cmd(archive_cmd)
+        finally:
+            os.chdir(cwd)
         log_stdout = "\n".join(apt_archive_out.split("\n")[:20]) + "\n..."
         logger.debug("stdout (abridged):\n%s", log_stdout)
         return apt_archive_out
