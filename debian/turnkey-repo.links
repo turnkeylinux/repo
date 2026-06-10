@@ -1,2 +1,4 @@
 /usr/bin/repo   /usr/bin/repo-index
 /usr/bin/repo   /usr/bin/repo-release
+/usr/bin/repo   /usr/bin/repo-download
+/usr/bin/repo   /usr/bin/repo-client-config

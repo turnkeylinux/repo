@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2025 TurnKey GNU/Linux - https://www.turnkeylinux.org
+# Copyright (c) 2021-2026 TurnKey GNU/Linux - https://www.turnkeylinux.org
 #
 # This file is part of Repo
 #
@@ -7,11 +7,13 @@
 # Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 
+"""repo_lib - Generation of required components for an apt repository."""
+
 import logging
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from os.path import exists, isdir, join
 
 logger = logging.getLogger(__name__)
@@ -20,7 +22,7 @@ level = os.getenv("REPO_LOG_LEVEL", "").lower()
 env_debug = os.getenv("DEBUG")
 
 # allow 'DEBUG' env var to override 'REPO_LOG_LEVEL'
-if "DEBUG" in os.environ.keys():
+if "DEBUG" in os.environ:
     level = "debug"
 
 loglevel = logging.INFO  # default logging / fallback if unknown log level
@@ -48,20 +50,25 @@ class RepoError(Exception):
 
 def rm_files(files: list[str] | None = None) -> None:
     if files:
-        logger.debug(f"Removing: {', '.join(files)}")
+        logger.debug("Removing: %s", ", ".join(files))
         for file in files:
             if exists(file):
                 os.remove(file)
 
 
-def run_cmd(cmd: list[str], rm_file: str = "") -> str:
-    logger.debug(f"Running command: {' '.join(cmd)}")
-    output = subprocess.run(cmd, capture_output=True, text=True)
+def run_cmd(
+    cmd: list[str],
+    rm_file: str = "",
+    env: dict[str, str] | None = None,
+) -> str:
+    logger.debug("Running command: %s", " ".join(cmd))
+    output = subprocess.run(
+        cmd, capture_output=True, text=True, check=False, env=env,
+    )
     if output.returncode != 0:
         rm_files([rm_file])
         raise RepoError(output.stderr)
-    else:
-        return output.stdout
+    return output.stdout
 
 
 class Repository:
@@ -83,48 +90,60 @@ class Repository:
         self.origin = origin
         self.quiet = quiet
 
-    def _archive_cmd(self, command: str, input: str, arch: str = "") -> str:
-        logger.debug(f"{command=}, {input=}, {arch=}")
+    def _archive_cmd(
+        self, command: str, input_str: str, arch: str = "",
+    ) -> str:
+        logger.debug(
+            "command=%r, input_str=%r, arch=%r", command, input_str, arch,
+        )
         cwd = os.getcwd()
         os.chdir(self.path)
-        archive_cmd = ["/usr/bin/apt-ftparchive", command, input]
+        archive_cmd: list[str] = [
+            "/usr/bin/apt-ftparchive", command, input_str,
+        ]
         if arch:
             archive_cmd.insert(1, f"--arch={arch}")
-        apt_archive_out = run_cmd(archive_cmd)
-        os.chdir(cwd)
+        try:
+            apt_archive_out = run_cmd(archive_cmd)
+        finally:
+            os.chdir(cwd)
         log_stdout = "\n".join(apt_archive_out.split("\n")[:20]) + "\n..."
-        logger.debug(f"stdout (abridged):\n{log_stdout}")
+        logger.debug("stdout (abridged):\n%s", log_stdout)
         return apt_archive_out
 
     def index(self, component: str, arch: str) -> None:
-        logger.debug(f"({component=}, {arch=})")
+        logger.debug("(component=%r, arch=%r)", component, arch)
         component_dir = join(self.pool, component)
         if not exists(join(self.path, component_dir)):
             raise RepoError(
-                f"component '{join(self.path, component_dir)}' does not exist"
+                f"component '{join(self.path, component_dir)}' does not exist",
             )
 
         output_dir = join(
-            self.path, "dists", self.release, component, f"binary-{arch}"
+            self.path, "dists", self.release, component, f"binary-{arch}",
         )
 
         os.makedirs(output_dir, exist_ok=True)
 
         output = self._archive_cmd("packages", component_dir, arch=arch)
         packages_file = join(output_dir, "Packages")
-        logger.debug(f"Writing: {packages_file}")
+        logger.debug("Writing: %s", packages_file)
         with open(packages_file, "w") as fob:
             if output:
                 output += "\n"
             fob.write(output)
 
-        for zip in ["gzip", "bzip2", "xz"]:
+        for archive in ["gzip", "bzip2", "xz"]:
             run_cmd(
-                [join("/usr/bin", zip), "-k", join(output_dir, "Packages")]
+                [
+                    join("/usr/bin", archive),
+                    "-k",
+                    join(output_dir, "Packages"),
+                ],
             )
 
         release_file = join(output_dir, "Release")
-        logger.debug(f"Writing: {release_file}")
+        logger.debug("Writing: %s", release_file)
         with open(release_file, "w") as fob:
             fob.writelines(
                 [
@@ -133,13 +152,13 @@ class Repository:
                     f"Label: {self.origin}\n",
                     f"Version: {self.version}\n",
                     # TODO implement "Acquire-By-Hash"
-                    # f"Acquire-By-Hash: yes\n",
+                    # > f"Acquire-By-Hash: yes\n",
                     f"Component: {component}\n",
                     f"Architecture: {arch}\n",
-                ]
+                ],
             )
 
-    def generate_release(self, gpgkey: str = "") -> None:
+    def generate_release(self, gpgkey: str = "", gnupghome: str = "") -> None:
         def get_archs() -> set[str]:
             archs = set()
             dist_path = join(self.path, "dists", self.release)
@@ -150,7 +169,7 @@ class Repository:
 
                 for binary in os.listdir(component_path):
                     archs.add(binary.replace("binary-", ""))
-            logger.debug(f"Return: {archs=}")
+            logger.debug("Return: archs=%r", archs)
             return archs
 
         components_dir = join(self.path, self.pool)
@@ -168,11 +187,11 @@ class Repository:
         rm_files(list(release_files.values()))
 
         hashes = self._archive_cmd("release", release_dir)
-        day = datetime.now(timezone.utc).strftime("%d %b %Y")
-        date_time = datetime.now(timezone.utc).strftime(
-            "%a, %d %b %Y %H:%M:%S UTC"
+        day = datetime.now(UTC).strftime("%d %b %Y")
+        date_time = datetime.now(UTC).strftime(
+            "%a, %d %b %Y %H:%M:%S UTC",
         )
-        logger.debug(f"Writing: {release_files['Release']}")
+        logger.debug("Writing: %s", release_files["Release"])
         with open(release_files["Release"], "w") as fob:
             fob.writelines(
                 [
@@ -182,19 +201,19 @@ class Repository:
                     f"Version: {self.version}\n",
                     f"Codename: {self.release}\n",
                     # TODO url for pkg changelogs & other metadata
-                    # f"Changelogs: CHANGELOG_URL_GOES_HERE",
+                    # > f"Changelogs: CHANGELOG_URL_GOES_HERE",
                     f"Date: {date_time}\n",
                     # TODO implement "Acquire-By-Hash"
-                    # f"Acquire-By-Hash: yes\n",
+                    # > f"Acquire-By-Hash: yes\n",
                     # TODO need to look at this more closely; my reading
                     #   suggests that this might make 'apt update' quicker
-                    # f"No-Support-for-Architecture-all: Packages\n",
+                    # > f"No-Support-for-Architecture-all: Packages\n",
                     f"Architectures: {' '.join(get_archs())}\n",
                     f"Components: {' '.join(os.listdir(components_dir))}\n",
                     f"Description: {self.origin} {self.release}"
                     f" {self.version} Released {day}\n",
                     f"{hashes}\n",
-                ]
+                ],
             )
 
         if not gpgkey:
@@ -206,13 +225,19 @@ class Repository:
                     file=sys.stderr,
                 )
         else:
-            logger.debug(f"Writing: {release_files['InRelease.tmp']}")
-            with open(release_files["InRelease.tmp"], "w") as inrelease_fob:
-                # not sure exactly what 'Hash' at the top means/does, but
-                # following Debian's lead
-                with open(release_files["Release"]) as release_fob:
-                    for line in release_fob:
-                        inrelease_fob.write(line)
+            logger.debug("Writing: %s", release_files["InRelease.tmp"])
+            with (
+                open(
+                    release_files["InRelease.tmp"], "w",
+                ) as inrelease_fob,
+                open(release_files["Release"]) as release_fob,
+            ):
+                inrelease_fob.writelines(release_fob)
+
+            gpg_env: dict[str, str] | None = None
+            if gnupghome:
+                gpg_env = {**os.environ, "GNUPGHOME": gnupghome}
+
             gpg_cmd = [
                 "/usr/bin/gpg",
                 "--armor",
@@ -234,7 +259,7 @@ class Repository:
                     release_files["InRelease.tmp"],
                 ],
             ):
-                run_cmd([*gpg_cmd, *gpg_args])
+                run_cmd([*gpg_cmd, *gpg_args], env=gpg_env)
         log_msg = ["Release file generated"]
         if gpgkey:
             log_msg.append(", InRelease file generated and both signed")

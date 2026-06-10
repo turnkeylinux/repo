@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright (c) 2021-2025 TurnKey GNU/Linux - https://www.turnkeylinux.org
+# Copyright (c) 2021-2026 TurnKey GNU/Linux - https://www.turnkeylinux.org
 #
 # This file is part of Repo
 #
@@ -8,11 +8,18 @@
 # Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 
+"""repo - Tool to generate apt repo filetree and relevant metadata files.
+
+This file includes argument handling and provides a thin wrapper around the
+relevant repo_lib.Repository() method.
+"""
+
 import argparse
 import subprocess
 import sys
+from collections.abc import Callable
 from os.path import basename
-from typing import Callable, NoReturn
+from typing import NoReturn
 
 from repo_lib import Repository, logger
 
@@ -20,15 +27,25 @@ CODENAMES = ["bookworm", "trixie", "forky"]
 SUPPORTED_ARCH = ["amd64", "arm64", "all"]
 
 HOST_ARCH = subprocess.run(
-    ["dpkg", "--print-architecture"],
+    ["/usr/bin/dpkg", "--print-architecture"],
     capture_output=True,
     text=True,
+    check=False,
 ).stdout.strip()
 
+ENV_VARS_HELP = """\
+env vars:
+    REPO_LOG_LEVEL set log level when repo called
+    DEBUG          debug output (same as 'REPO_LOG_LEVEL=debug')
+"""
 
-def fatal(msg: str, help: Callable[[None], None] | None = None) -> NoReturn:
+
+def fatal(
+    msg: str,
+    help_func: Callable[[None], None] | None = None,
+) -> NoReturn:
     print(f"error: {msg}", file=sys.stderr)
-    if help:
+    if help_func:
         help(None)
     sys.exit(1)
 
@@ -37,20 +54,16 @@ def main() -> None:
     # common repo parser; subparsers provide -h|--help
     common_parser = argparse.ArgumentParser(add_help=False)
     common_formatter_class = argparse.RawDescriptionHelpFormatter
-    common_env_var_epilog = (
-        "env vars:"
-        "\n  REPO_LOG_LEVEL\tset log level when repo called"
-        "\n  DEBUG\t\t\tdebug output (same as 'REPO_LOG_LEVEL=debug')"
-    )
+    common_env_var_epilog = ENV_VARS_HELP
 
     common_parser.add_argument("path", help="Path to repository")
     common_parser.add_argument(
-        "release", help="Release to act on (e.g. bookworm)"
+        "release", help="Release to act on (e.g. bookworm)",
     )
     common_parser.add_argument(
         "--pool",
         default="pool",
-        help="Packages pool directory - default: pool"
+        help="Packages pool directory - default: pool",
     )
     common_parser.add_argument(
         "--origin",
@@ -63,7 +76,7 @@ def main() -> None:
         help="Release version to set - default: 1.0",
     )
     common_parser.add_argument(
-        "-q", "--quiet", action="store_true", help="No output when processing"
+        "-q", "--quiet", action="store_true", help="No output when processing",
     )
 
     # main repo command parser
@@ -85,7 +98,7 @@ def main() -> None:
         epilog=common_env_var_epilog,
     )
     repo_index_parser.add_argument(
-        "component", help="Release component to index (e.g. main)"
+        "component", help="Release component to index (e.g. main)",
     )
     repo_index_parser.add_argument(
         "arch",
@@ -94,6 +107,7 @@ def main() -> None:
         help=f"Architecture - default: host arch ({HOST_ARCH}),"
         f" valid options: {'|'.join(SUPPORTED_ARCH)}",
     )
+
     repo_release_parser = subparsers.add_parser(
         "release",
         formatter_class=common_formatter_class,
@@ -101,8 +115,82 @@ def main() -> None:
         parents=[common_parser],
         epilog=common_env_var_epilog,
     )
+    gpg_group = repo_release_parser.add_mutually_exclusive_group()
+    gpg_group.add_argument(
+        "--gpgkey", help="GPG key to use when signing the release",
+    )
+    gpg_group.add_argument(
+        "--gen-key",
+        action="store_true",
+        help="Generate a temporary 4096-bit RSA signing key",
+    )
     repo_release_parser.add_argument(
-        "--gpgkey", help="GPG Key to use when signing the release"
+        "--key-expiry",
+        default="10y",
+        metavar="EXPIRY",
+        help="Key expiry for --gen-key (default: 10y)",
+    )
+
+    repo_download_parser = subparsers.add_parser(
+        "download",
+        formatter_class=common_formatter_class,
+        help="Resolve and download packages into pool",
+        epilog=common_env_var_epilog,
+    )
+    repo_download_parser.add_argument("path", help="Path to repository")
+    repo_download_parser.add_argument(
+        "release", help="Release to target (e.g. trixie)",
+    )
+    repo_download_parser.add_argument(
+        "component", help="Pool component (e.g. main)",
+    )
+    repo_download_parser.add_argument(
+        "arch", help="Architecture (e.g. amd64)",
+    )
+    repo_download_parser.add_argument(
+        "packages", nargs="+", metavar="package",
+        help="Package(s) to resolve and download",
+    )
+    repo_download_parser.add_argument(
+        "--pool", default="pool",
+        help="Pool directory - default: pool",
+    )
+    repo_download_parser.add_argument(
+        "--chroot", default="", metavar="PATH",
+        help="Path to target rootfs chroot - default: none (use host)",
+    )
+
+    repo_client_config_parser = subparsers.add_parser(
+        "client-config",
+        formatter_class=common_formatter_class,
+        help="Generate client apt configuration files",
+        epilog=common_env_var_epilog,
+    )
+    repo_client_config_parser.add_argument("path", help="Path to repository")
+    repo_client_config_parser.add_argument(
+        "release", help="Release (e.g. trixie)",
+    )
+    repo_client_config_parser.add_argument(
+        "component", help="Component (e.g. main)",
+    )
+    repo_client_config_parser.add_argument(
+        "arch", help="Architecture (e.g. amd64)",
+    )
+    repo_client_config_parser.add_argument(
+        "--pool", default="pool",
+        help="Pool directory - default: pool",
+    )
+    repo_client_config_parser.add_argument(
+        "--output", default=".", metavar="DIR",
+        help="Output directory - default: current directory",
+    )
+    repo_client_config_parser.add_argument(
+        "--uri", required=True,
+        help="Repo URI as clients will access it",
+    )
+    repo_client_config_parser.add_argument(
+        "--name", default="",
+        help="Base name for output files - default: repo path basename",
     )
 
     # process repo-index & repo-release
@@ -115,20 +203,55 @@ def main() -> None:
     if not args.command:
         fatal("Subcommand required.", repo_parser.print_help)
 
-    repo = Repository(
-        args.path,
-        args.release,
-        args.pool,
-        args.version,
-        args.origin,
-        args.quiet,
-    )
     if args.command == "index":
+        repo = Repository(
+            args.path,
+            args.release,
+            args.pool,
+            args.version,
+            args.origin,
+            args.quiet,
+        )
         if args.arch not in SUPPORTED_ARCH:
             fatal(f"Architecture {args.arch} not supported")
         repo.index(args.component, args.arch)
+
     elif args.command == "release":
-        repo.generate_release(args.gpgkey)
+        repo = Repository(
+            args.path,
+            args.release,
+            args.pool,
+            args.version,
+            args.origin,
+            args.quiet,
+        )
+        if args.gen_key:
+            from repo_lib.gpg import gen_and_sign
+            gen_and_sign(repo, args.key_expiry)
+        else:
+            repo.generate_release(args.gpgkey or "")
+
+    elif args.command == "download":
+        from repo_lib.download import populate_pool
+        populate_pool(
+            args.path,
+            args.pool,
+            args.component,
+            args.packages,
+            args.chroot,
+        )
+
+    elif args.command == "client-config":
+        from repo_lib.client import write_client_config
+        write_client_config(
+            args.path,
+            args.release,
+            args.component,
+            args.arch,
+            args.uri,
+            args.output,
+            args.name,
+        )
 
 
 if __name__ == "__main__":
