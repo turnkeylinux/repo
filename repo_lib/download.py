@@ -7,6 +7,7 @@ import shutil
 import subprocess
 from os.path import exists, join
 
+from chroot import Chroot
 from repo_lib import RepoError
 
 logger = logging.getLogger(__name__)
@@ -17,9 +18,6 @@ APT_CACHE = "/var/cache/apt/archives"
 def _run(cmd: list[str], chroot: str = "") -> str:
     """Run a command on the host or inside a chroot; return stdout."""
     if chroot:
-        # Imported here so the package is only required when --chroot is used.
-        # - ignored PLC0415 & I001 because import not at top of file.
-        from chroot import Chroot  # type: ignore[import-untyped]  # noqa: PLC0415, I001
         result = Chroot(chroot).run(
             cmd, capture_output=True, text=True, check=False,
         )
